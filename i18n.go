@@ -23,7 +23,6 @@ type I18n struct {
 	fallbacks                 map[string][]string
 	parsedTranslations        map[string]map[string]*parsedTranslation
 	runtimeParsedTranslations map[string]*parsedTranslation
-	domains                   map[string]bool
 }
 
 // WithUnmarshaler replaces the default translation file unmarshaler.
