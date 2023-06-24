@@ -6,8 +6,6 @@
 - Load translations from a map, files or `go:embed` supported.
 - Translations with [ICU Message Format](https://unicode-org.github.io/icu/userguide/format_parse/messages/) syntax are supported.
 
-&nbsp;
-
 ## Index
 -   [Installation](#installation)
 -   [Getting Started](#getting-started)
@@ -27,6 +25,8 @@
     -   [TOML Unmarshaler](#toml-unmarshaler)
     -   [INI Unmarshaler](#ini-unmarshaler)
 -   [Parse Accept-Language](#parse-accept-language)
+
+&nbsp;
 
 ## Installation
 
@@ -104,10 +104,10 @@ package main
 import "github.com/kaptinlin/go-i18n"
 
 func main() {
-    bundle :=i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
+    bundle := i18n.NewBundle(
+        i18n.WithDefaultLocale("en"),
         i18n.WithLocales("en", "zh-Hans"),
-	)
+    )
 
     bundle.LoadMessages(map[string]map[string]string{
         "en": map[string]string{
@@ -130,10 +130,10 @@ package main
 import "github.com/kaptinlin/go-i18n"
 
 func main() {
-    bundle :=i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
+    bundle := i18n.NewBundle(
+        i18n.WithDefaultLocale("en"),
         i18n.WithLocales("en", "zh-Hans"),
-	)
+    )
 
     bundle.LoadFiles("./locales/en.json", "./locales/zh-Hans.json")
 }
@@ -153,10 +153,10 @@ package main
 import "github.com/kaptinlin/go-i18n"
 
 func main() {
-    bundle :=i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
+    bundle := i18n.NewBundle(
+        i18n.WithDefaultLocale("en"),
         i18n.WithLocales("en", "zh-Hans"),
-	)
+    )
 
     bundle.LoadGlob("./locales/*.json")
 }
@@ -179,10 +179,10 @@ import "github.com/kaptinlin/go-i18n"
 var localesFS embed.FS
 
 func main() {
-    bundle :=i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
+    bundle := i18n.NewBundle(
+        i18n.WithDefaultLocale("en"),
         i18n.WithLocales("en", "zh-Hans"),
-	)
+    )
 
     // Load all json files under `locales` folder from the filesystem.
     bundle.LoadFS(localesFS, "locales/*.json")
@@ -398,10 +398,10 @@ import "gopkg.in/yaml.v3"
 
 func main() {
     bundle := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans"),
-		i18n.WithUnmarshaler(yaml.Unmarshal),
-	)
+        i18n.WithDefaultLocale("en"),
+        i18n.WithLocales("en", "zh-Hans"),
+        i18n.WithUnmarshaler(yaml.Unmarshal),
+    )
 }
 ```
 
@@ -428,10 +428,10 @@ import "github.com/pelletier/go-toml/v2"
 
 func main() {
     bundle := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans"),
-		i18n.WithUnmarshaler(toml.Unmarshal),
-	)
+        i18n.WithDefaultLocale("en"),
+        i18n.WithLocales("en", "zh-Hans"),
+        i18n.WithUnmarshaler(toml.Unmarshal),
+    )
 }
 ```
 
@@ -482,10 +482,10 @@ func unmarshalINI(data []byte, v interface{}) error {
 
 func main() {
     bundle := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans"),
-		i18n.WithUnmarshaler(unmarshalINI),
-	)
+        i18n.WithDefaultLocale("en"),
+        i18n.WithLocales("en", "zh-Hans"),
+        i18n.WithUnmarshaler(unmarshalINI),
+    )
 }
 ```
 
@@ -510,9 +510,9 @@ The built-in `MatchAvailableLocale` function helps you to parse the `Accept-Lang
 func(w http.ResponseWriter, r *http.Request) {
     // Initialize i18n.
     bundle :=i18n.NewBundle(
-		i18n.WithDefaultLocale("zh-Hans"),
+        i18n.WithDefaultLocale("zh-Hans"),
         i18n.WithLocales("en", "zh-Hans"),
-	)
+    )
     bundle.LoadFiles("zh-Hans.json", "en.json")
 
     // Get `Accept-Language` from request header.
