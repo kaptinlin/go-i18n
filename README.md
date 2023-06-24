@@ -519,7 +519,7 @@ func(w http.ResponseWriter, r *http.Request) {
     accept := r.Header.Get("Accept-Language")
 
     // Use the locale.
-    localizer := bundle.NewLocalizer(...bundle.MatchAvailableLocale(accept))
+    localizer := bundle.NewLocalizer(bundle.MatchAvailableLocale(accept))
     localizer.Get("hello_world")
 }
 ```
