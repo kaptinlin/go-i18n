@@ -1,0 +1,4 @@
+hello_world = "你好, 世界"
+hello_name = "你好, {name}"
+message = "{count, plural, one {消息} other {消息}}"
+message_with_number = "{count, plural, =0 {没有消息} one {1 条消息} other {# 条消息}}"

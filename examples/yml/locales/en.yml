@@ -1,0 +1,5 @@
+---
+hello_world: Hello, world
+hello_name: hello, {name}
+message: "{count, plural, one {Message} other {Messages}}"
+message_with_number: "{count, plural, =0 {No messages} one {1 message} other {# messages}}"

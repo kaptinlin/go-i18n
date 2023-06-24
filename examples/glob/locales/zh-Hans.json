@@ -1,0 +1,4 @@
+{
+  "hello_world": "你好, 世界",
+  "hello_name": "你好, {name}"
+}
