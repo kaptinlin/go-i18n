@@ -1,4 +1,3 @@
-### Go template
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -12,7 +11,27 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IntelliJ files
+.idea/
+
+# Coverage files
+cover.out
+cover.html
+
+# Local binary folder
 bin/
-release/
-coverage/
-coverage*.**
+
+# Local build folder for storing build artifacts
+build/
+
+# Mac OS files
+**/.DS_Store
+
+# todo
+.todo

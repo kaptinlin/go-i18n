@@ -15,19 +15,19 @@ func TestParseAcceptLanguage(t *testing.T) {
 	)
 
 	bundle.LoadMessages(map[string]map[string]string{
-		"en": map[string]string{
+		"en": {
 			"hello_world": "Hello, world",
 		},
 
-		"zh-Hans": map[string]string{
+		"zh-Hans": {
 			"hello_world": "你好，世界",
 		},
 
-		"ja-JP": map[string]string{
+		"ja-JP": {
 			"hello_world": "こんにちは世界",
 		},
 
-		"ko-KR": map[string]string{
+		"ko-KR": {
 			"hello_world": "안녕 세상",
 		},
 	})

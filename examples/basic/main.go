@@ -13,12 +13,12 @@ func main() {
 	)
 
 	err := bundle.LoadMessages(map[string]map[string]string{
-		"en": map[string]string{
+		"en": {
 			"hello_world":  "Hello, world",
 			"hello_name":   "Hello, {name}",
 			"hello_string": "Hello, %s",
 		},
-		"zh-Hans": map[string]string{
+		"zh-Hans": {
 			"hello_world":  "你好, 世界",
 			"hello_name":   "你好, {name}",
 			"hello_string": "你好, %s",

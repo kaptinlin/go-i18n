@@ -1,39 +1,47 @@
-SHELL := /bin/bash
+# Set up GOBIN so that our binaries are installed to ./bin instead of $GOPATH/bin.
+PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+export GOBIN = $(PROJECT_ROOT)/bin
 
-.PHONY: all check format vet build test tidy
+GOLANGCI_LINT_VERSION := $(shell $(GOBIN)/golangci-lint version --format short 2>/dev/null)
+REQUIRED_GOLANGCI_LINT_VERSION := $(shell cat .golangci.version)
 
-help:
-	@echo "Please use \`make <target>\` where <target> is one of"
-	@echo "  check               to format, vet "
-	@echo "  build               to create bin directory and build"
-	@echo "  generate            to generate code"
-	@echo "  unit_test           to run unit test"
-	@echo "  integration_test    to run integration test"
+# Directories containing independent Go modules.
+MODULE_DIRS = .
 
-check: format vet
+.PHONY: all
+all: lint test
 
-format:
-	@echo "go fmt"
-	@go fmt ./...
-	@echo "ok"
+.PHONY: clean
+clean:
+	@rm -rf $(GOBIN)
 
-vet:
-	@echo "go vet"
-	@go vet ./...
-	@echo "ok"
-
-build: tidy check
-	@echo "build go-i18n"
-	@go build ./...
-	@echo "ok"
-
+.PHONY: test
 test:
-	@echo "run unit test"
-	@go test -race -cover -coverprofile=coverage.txt -v ./...
-	@go tool cover -html="coverage.txt" -o "coverage.html"
-	@echo "ok"
+	@$(foreach mod,$(MODULE_DIRS),(cd $(mod) && go test -race ./...) &&) true
 
-tidy:
-	@echo "Tidy and check the go mod files"
-	@go mod tidy && go mod verify
-	@echo "Done"
+.PHONY: lint
+lint: golangci-lint tidy-lint
+
+# Install golangci-lint with the required version in GOBIN if it is not already installed.
+.PHONY: install-golangci-lint
+install-golangci-lint:
+    ifneq ($(GOLANGCI_LINT_VERSION),$(REQUIRED_GOLANGCI_LINT_VERSION))
+		@echo "[lint] installing golangci-lint v$(REQUIRED_GOLANGCI_LINT_VERSION) since current version is \"$(GOLANGCI_LINT_VERSION)\""
+		@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v$(REQUIRED_GOLANGCI_LINT_VERSION)
+    endif
+
+.PHONY: golangci-lint
+golangci-lint: install-golangci-lint
+	@echo "[lint] $(shell $(GOBIN)/golangci-lint version)"
+	@$(foreach mod,$(MODULE_DIRS), \
+		(cd $(mod) && \
+		echo "[lint] golangci-lint: $(mod)" && \
+		$(GOBIN)/golangci-lint run --timeout=10m --path-prefix $(mod)) &&) true
+
+.PHONY: tidy-lint
+tidy-lint:
+	@$(foreach mod,$(MODULE_DIRS), \
+		(cd $(mod) && \
+		echo "[lint] mod tidy: $(mod)" && \
+		go mod tidy && \
+		git diff --exit-code -- go.mod go.sum) &&) true

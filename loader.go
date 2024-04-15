@@ -34,7 +34,7 @@ func (bundle *I18n) LoadFiles(files ...string) error {
 	data := make(map[string]map[string]string)
 
 	for _, file := range files {
-		b, err := os.ReadFile(file)
+		b, err := os.ReadFile(file) //nolint:gosec
 		if err != nil {
 			return err
 		}

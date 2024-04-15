@@ -7,11 +7,11 @@ import (
 )
 
 var testTranslations = map[string]map[string]string{
-	"en": map[string]string{
+	"en": {
 		"{count, plural, =0 {None} one {1 Apple} other {# Apples}}": "{count, plural, =0 {None} one {1 Apple} other {# Apples}}",
 	},
 
-	"zh-Hans": map[string]string{
+	"zh-Hans": {
 		// Token-based Translations
 		"test_message":  "这是一则测试讯息。",
 		"test_template": "你好，{Name}！",
@@ -31,14 +31,14 @@ var testTranslations = map[string]map[string]string{
 		"{count, plural, =0 {No Post} one {1 Post} other {# Posts}}": "THIS_SHOULD_NOT_BE_USED",
 	},
 
-	"ja-JP": map[string]string{
+	"ja-JP": {
 		// Token-based Translations
 		"test_message":  "これはテストメッセージです。",
 		"test_template": "こんにちは、{Name}！",
 		"test_plural":   "{count, plural, =0 {なし} one {1 つだけ} other {# 个あります}}",
 	},
 
-	"ko-KR": map[string]string{
+	"ko-KR": {
 		// Token-based Translations
 		"test_message":  "이것은 테스트 메시지입니다.",
 		"test_template": "안녕하세요, {Name} 님!",
@@ -186,7 +186,7 @@ func TestTextFallback(t *testing.T) {
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{
-			"ja-JP": []string{"ko-KR"},
+			"ja-JP": {"ko-KR"},
 		}),
 	)
 	bundle.LoadMessages(testTranslations)
@@ -229,8 +229,8 @@ func TestTextFallbackResursive(t *testing.T) {
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{
-			"ja-JP": []string{"ko-KR"},
-			"ko-KR": []string{"zh-Hans"},
+			"ja-JP": {"ko-KR"},
+			"ko-KR": {"zh-Hans"},
 		}))
 	bundle.LoadMessages(testTranslations)
 	localizer := bundle.NewLocalizer("ja-JP")

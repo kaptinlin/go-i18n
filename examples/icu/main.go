@@ -13,7 +13,7 @@ func main() {
 	)
 
 	err := bundle.LoadMessages(map[string]map[string]string{
-		"en": map[string]string{
+		"en": {
 			"message_basic":       "{count, plural, one {Message} other {Messages}}",
 			"message_with_number": "{count, plural, =0 {No messages} one {1 message} other {# messages}}",
 			"message_with_multiline": `{count, plural,
@@ -24,7 +24,7 @@ func main() {
 			"message_with_select":  "{gender, select, male {He} female {She} other {They}} replied to your message.",
 			"message_with_ordinal": "The {floor, selectordinal, one{#st} two{#nd} few{#rd} other{#th}} floor.",
 		},
-		"zh-Hans": map[string]string{
+		"zh-Hans": {
 			"message_basic":       "{count, plural, one {消息} other {消息}}",
 			"message_with_number": "{count, plural, =0 {没有消息} one {1 条消息} other {# 条消息}}",
 			"message_with_multiline": `{count, plural,

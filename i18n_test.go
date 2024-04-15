@@ -21,15 +21,15 @@ func TestLoadMessages(t *testing.T) {
 		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 	)
 	bundle.LoadMessages(map[string]map[string]string{
-		"zh-Hans": map[string]string{
+		"zh-Hans": {
 			"test_message": "这是一则测试讯息。",
 		},
 
-		"ja-JP": map[string]string{
+		"ja-JP": {
 			"test_message": "これはテストメッセージです。",
 		},
 
-		"ko-KR": map[string]string{
+		"ko-KR": {
 			"test_message": "이것은 테스트 메시지입니다.",
 		},
 	})
