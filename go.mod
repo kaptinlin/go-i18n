@@ -3,7 +3,7 @@ module github.com/kaptinlin/go-i18n
 go 1.21
 
 require (
-	github.com/goccy/go-json v0.10.2
+	github.com/goccy/go-json v0.10.3
 	github.com/gotnospirit/messageformat v0.0.0-20221001023931-dfe49f1eb092
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/stretchr/testify v1.9.0
