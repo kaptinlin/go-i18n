@@ -8,7 +8,7 @@ require (
 	github.com/gotnospirit/messageformat v0.0.0-20221001023931-dfe49f1eb092
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/text v0.16.0
+	golang.org/x/text v0.17.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 )
