@@ -57,7 +57,9 @@ func newTestLocalizer() *Localizer {
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
 	)
-	bundle.LoadMessages(testTranslations)
+	if err := bundle.LoadMessages(testTranslations); err != nil {
+		panic(err)
+	}
 	return bundle.NewLocalizer("zh-Hans")
 }
 
@@ -189,7 +191,7 @@ func TestTextFallback(t *testing.T) {
 			"ja-JP": {"ko-KR"},
 		}),
 	)
-	bundle.LoadMessages(testTranslations)
+	assert.NoError(bundle.LoadMessages(testTranslations))
 	localizer := bundle.NewLocalizer("ja-JP")
 
 	// Test ja-JP
@@ -232,7 +234,7 @@ func TestTextFallbackResursive(t *testing.T) {
 			"ja-JP": {"ko-KR"},
 			"ko-KR": {"zh-Hans"},
 		}))
-	bundle.LoadMessages(testTranslations)
+	assert.NoError(bundle.LoadMessages(testTranslations))
 	localizer := bundle.NewLocalizer("ja-JP")
 
 	// Test ja-JP -> ko-KR -> zh-CN fallback

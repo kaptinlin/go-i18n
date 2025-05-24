@@ -14,7 +14,7 @@ func TestParseAcceptLanguage(t *testing.T) {
 		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 	)
 
-	bundle.LoadMessages(map[string]map[string]string{
+	assert.NoError(bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"hello_world": "Hello, world",
 		},
@@ -30,7 +30,7 @@ func TestParseAcceptLanguage(t *testing.T) {
 		"ko-KR": {
 			"hello_world": "안녕 세상",
 		},
-	})
+	}))
 
 	localizer := bundle.NewLocalizer(bundle.MatchAvailableLocale("zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6"))
 

@@ -20,7 +20,7 @@ func TestLoadMessages(t *testing.T) {
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 	)
-	bundle.LoadMessages(map[string]map[string]string{
+	assert.NoError(bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {
 			"test_message": "这是一则测试讯息。",
 		},
@@ -32,7 +32,7 @@ func TestLoadMessages(t *testing.T) {
 		"ko-KR": {
 			"test_message": "이것은 테스트 메시지입니다.",
 		},
-	})
+	}))
 	localizer := bundle.NewLocalizer("zh-Hans")
 
 	assert.Equal("这是一则测试讯息。", localizer.Get("test_message"))
