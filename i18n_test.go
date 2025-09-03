@@ -4,10 +4,10 @@ import (
 	"embed"
 	"testing"
 
-	"github.com/pelletier/go-toml/v2"
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 //go:embed test/*.json

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/goccy/go-json"
+	json "github.com/goccy/go-json"
 	"github.com/gotnospirit/messageformat"
 	"golang.org/x/text/language"
 )
