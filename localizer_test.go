@@ -1,8 +1,11 @@
 package i18n
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	mf "github.com/kaptinlin/messageformat-go/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -241,4 +244,100 @@ func TestTextFallbackResursive(t *testing.T) {
 	assert.Equal("1 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
 		"count": 1,
 	}))
+}
+
+func TestCustomFormatters(t *testing.T) {
+	assert := assert.New(t)
+
+	upperFormatter := func(value interface{}, locale string, arg *string) interface{} {
+		return strings.ToUpper(fmt.Sprintf("%v", value))
+	}
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithCustomFormatters(map[string]interface{}{
+			"upper": upperFormatter,
+		}),
+	)
+
+	localizer := bundle.NewLocalizer("en")
+
+	result, err := localizer.Format("Hello, {name, upper}!", Vars{
+		"name": "world",
+	})
+
+	assert.NoError(err)
+	assert.Equal("Hello, WORLD!", result)
+}
+
+func TestStrictMode(t *testing.T) {
+	assert := assert.New(t)
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithStrictMode(true),
+	)
+
+	localizer := bundle.NewLocalizer("en")
+
+	result, err := localizer.Format("{count, plural, one {# item} other {# items}}", Vars{
+		"count": 1,
+	})
+
+	assert.NoError(err)
+	assert.Equal("1 item", result)
+}
+
+func TestFormatMethod(t *testing.T) {
+	assert := assert.New(t)
+
+	bundle := NewBundle(WithDefaultLocale("en"))
+	localizer := bundle.NewLocalizer("en")
+
+	result1, err := localizer.Format("Hello, {name}!", Vars{
+		"name": "Alice",
+	})
+	assert.NoError(err)
+	assert.Equal("Hello, Alice!", result1)
+
+	result2, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{
+		"count": 0,
+	})
+	assert.NoError(err)
+	assert.Equal("no items", result2)
+
+	result3, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{
+		"count": 1,
+	})
+	assert.NoError(err)
+	assert.Equal("1 item", result3)
+
+	result4, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{
+		"count": 5,
+	})
+	assert.NoError(err)
+	assert.Equal("5 items", result4)
+}
+
+func TestMessageFormatOptions(t *testing.T) {
+	assert := assert.New(t)
+
+	options := &mf.MessageFormatOptions{
+		Strict:   true,
+		Currency: "USD",
+	}
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithMessageFormatOptions(options),
+	)
+
+	localizer := bundle.NewLocalizer("en")
+
+	result, err := localizer.Format("Hello, {name}!", Vars{
+		"name": "World",
+	})
+
+	assert.NoError(err)
+	assert.Equal("Hello, World!", result)
 }

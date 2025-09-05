@@ -4,9 +4,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 
 	json "github.com/goccy/go-json"
-	"github.com/gotnospirit/messageformat"
+	mf "github.com/kaptinlin/messageformat-go/v1"
 	"golang.org/x/text/language"
 )
 
@@ -23,6 +24,7 @@ type I18n struct {
 	fallbacks                 map[string][]string
 	parsedTranslations        map[string]map[string]*parsedTranslation
 	runtimeParsedTranslations map[string]*parsedTranslation
+	mfOptions                 *mf.MessageFormatOptions
 }
 
 // WithUnmarshaler replaces the default translation file unmarshaler.
@@ -59,14 +61,42 @@ func WithLocales(languages ...string) func(*I18n) {
 	}
 }
 
-// New creates a new internationalization.
+// WithMessageFormatOptions sets MessageFormat options
+func WithMessageFormatOptions(opts *mf.MessageFormatOptions) func(*I18n) {
+	return func(bundle *I18n) {
+		bundle.mfOptions = opts
+	}
+}
+
+// WithCustomFormatters sets custom formatters for MessageFormat
+func WithCustomFormatters(formatters map[string]interface{}) func(*I18n) {
+	return func(bundle *I18n) {
+		if bundle.mfOptions == nil {
+			bundle.mfOptions = &mf.MessageFormatOptions{}
+		}
+		bundle.mfOptions.CustomFormatters = formatters
+	}
+}
+
+// WithStrictMode sets strict parsing mode
+func WithStrictMode(strict bool) func(*I18n) {
+	return func(bundle *I18n) {
+		if bundle.mfOptions == nil {
+			bundle.mfOptions = &mf.MessageFormatOptions{}
+		}
+		bundle.mfOptions.Strict = strict
+	}
+}
+
+// NewBundle creates a new internationalization bundle.
 func NewBundle(options ...func(*I18n)) *I18n {
+	// Pre-allocate with reasonable default capacities
 	bundle := &I18n{
-		languages:                 make([]language.Tag, 0),
+		languages:                 make([]language.Tag, 0, max(len(options), 4)), // Estimate 4 languages
 		unmarshaler:               json.Unmarshal,
-		fallbacks:                 make(map[string][]string),
-		runtimeParsedTranslations: make(map[string]*parsedTranslation),
-		parsedTranslations:        make(map[string]map[string]*parsedTranslation),
+		fallbacks:                 make(map[string][]string, max(len(options), 4)),
+		runtimeParsedTranslations: make(map[string]*parsedTranslation, 100), // Estimate 100 translations
+		parsedTranslations:        make(map[string]map[string]*parsedTranslation, max(len(options), 4)),
 	}
 	for _, o := range options {
 		o(bundle)
@@ -138,7 +168,7 @@ type parsedTranslation struct {
 	locale string
 	name   string
 	text   string
-	format *messageformat.MessageFormat
+	format mf.MessageFunction
 }
 
 // trimContext
@@ -149,32 +179,51 @@ func trimContext(v string) string {
 // parseTranslation
 func (bundle *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, error) {
 	parsedTrans := &parsedTranslation{
-		name: name,
+		name:   name,
+		locale: locale,
+		text:   text,
 	}
-	parsedTrans.locale = locale
-	parsedTrans.text = text
+
 	base, _ := language.MustParse(locale).Base()
 
-	langParser, err := messageformat.NewWithCulture(base.String())
+	// Create new MessageFormat instance
+	messageFormat, err := mf.New(base.String(), bundle.mfOptions)
 	if err != nil {
-		return nil, err
+		return parsedTrans, nil //nolint:nilerr // Intentionally ignore error for graceful fallback
 	}
 
-	parsedTrans.format, err = langParser.Parse(text)
+	compiled, err := messageFormat.Compile(text)
 	if err != nil {
-		return nil, err
+		return parsedTrans, nil //nolint:nilerr // Intentionally ignore error for graceful fallback
 	}
 
+	parsedTrans.format = compiled
 	return parsedTrans, nil
 }
 
-// nameInsenstive converts `zh_CN.music.json`, `zh_CN` and `zh-TW` to `zh-CN`.
-func nameInsenstive(v string) string {
+// nameInsensitive converts `zh_CN.music.json`, `zh_CN` and `zh-TW` to `zh-CN`.
+func nameInsensitive(v string) string {
 	v = filepath.Base(v)
-	v = strings.Split(v, ".")[0]
-	v = strings.ToLower(v)
-	v = strings.ReplaceAll(v, "_", "-")
-	return v
+
+	// Use strings.Cut instead of Split for better performance (Go 1.18+)
+	if before, _, found := strings.Cut(v, "."); found {
+		v = before
+	}
+
+	// Use Builder to reduce memory allocations
+	var result strings.Builder
+	result.Grow(len(v)) // Pre-allocate capacity
+
+	for _, r := range v {
+		switch r {
+		case '_':
+			result.WriteByte('-')
+		default:
+			result.WriteRune(unicode.ToLower(r))
+		}
+	}
+
+	return result.String()
 }
 
 // formatFallbacks

@@ -1,6 +1,10 @@
 package i18n
 
-import "golang.org/x/text/language"
+import (
+	"slices"
+
+	"golang.org/x/text/language"
+)
 
 // MatchAvailableLocale return one of the available locales
 func (bundle *I18n) MatchAvailableLocale(locales ...string) string {
@@ -11,6 +15,7 @@ func (bundle *I18n) MatchAvailableLocale(locales ...string) string {
 		if err != nil {
 			continue
 		}
+		tags = slices.Grow(tags, len(desired)) // Pre-allocate capacity
 		tags = append(tags, desired...)
 	}
 

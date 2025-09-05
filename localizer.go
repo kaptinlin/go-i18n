@@ -1,6 +1,11 @@
 package i18n
 
-import "fmt"
+import (
+	"fmt"
+
+	mf "github.com/kaptinlin/messageformat-go/v1"
+	"golang.org/x/text/language"
+)
 
 // Localizer represents a translated locale.
 type Localizer struct {
@@ -63,11 +68,48 @@ func (localizer *Localizer) localize(tran *parsedTranslation, data ...Vars) stri
 	}
 
 	if tran.format != nil {
-		str, err := tran.format.FormatMap(data[0])
-
+		// Convert Vars (map[string]interface{}) to interface{} for MessageFormat
+		var params interface{} = map[string]interface{}(data[0])
+		result, err := tran.format(params)
 		if err == nil {
-			return str
+			if str, ok := result.(string); ok {
+				return str
+			}
 		}
 	}
 	return tran.text
+}
+
+// Format compiles and formats a MessageFormat message directly
+func (localizer *Localizer) Format(message string, data ...Vars) (string, error) {
+	base, _ := language.MustParse(localizer.locale).Base()
+
+	// Create new MessageFormat instance
+	messageFormat, err := mf.New(base.String(), localizer.bundle.mfOptions)
+	if err != nil {
+		return "", err
+	}
+
+	// Compile the message
+	compiled, err := messageFormat.Compile(message)
+	if err != nil {
+		return "", err
+	}
+
+	// Execute with parameters
+	var params interface{}
+	if len(data) > 0 {
+		params = map[string]interface{}(data[0])
+	}
+
+	result, err := compiled(params)
+	if err != nil {
+		return "", err
+	}
+
+	if str, ok := result.(string); ok {
+		return str, nil
+	}
+
+	return fmt.Sprintf("%v", result), nil
 }
