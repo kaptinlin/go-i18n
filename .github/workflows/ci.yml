@@ -1,10 +1,14 @@
-name: Go
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.24"
 
 jobs:
   test:
@@ -17,13 +21,26 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Download dependencies
-        run: go mod download
+        run: make deps
 
-      - name: Run unit tests
+      - name: Run tests
         run: make test
+
+      - name: Run benchmarks
+        run: make bench
 
   lint:
     name: Lint
@@ -35,17 +52,28 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Read golangci-lint version from .golangci.version
-        id: golangci-version
-        run: echo "GOLANGCI_VERSION=$(cat .golangci.version)" > $GITHUB_OUTPUT
-
-      - uses: golangci/golangci-lint-action@v6
-        name: Install and run golangci-lint
+      - name: Cache Go modules
+        uses: actions/cache@v4
         with:
-          version: v${{ steps.golangci-version.outputs.GOLANGCI_VERSION }}
-          args: -h
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-      - run: make lint
-        name: Lint
+      - name: Download dependencies
+        run: make deps
+
+      - name: Run linters
+        run: make lint
+
+      - name: Check formatting
+        run: |
+          make fmt
+          git diff --exit-code
+
+      - name: Run go vet
+        run: make vet
