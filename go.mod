@@ -1,13 +1,13 @@
 module github.com/kaptinlin/go-i18n
 
-go 1.24.0
+go 1.24.7
 
 require (
 	github.com/goccy/go-json v0.10.5
 	github.com/kaptinlin/messageformat-go v0.4.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/text v0.28.0
+	golang.org/x/text v0.29.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 )
