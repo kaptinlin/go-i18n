@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/goccy/go-json v0.10.5 h1:Fq85nIqj+gXn/S5ahsiTlK3TmC85qgirsdTP/+DeaC4=
 github.com/goccy/go-json v0.10.5/go.mod h1:oq7eo15ShAhp70Anwd5lgX2pLfOS3QCiwU/PULtXL6M=
-github.com/kaptinlin/messageformat-go v0.4.1 h1:OFzaIUbHIrvd8WKCfUwW5gmIumx2m0+X3X+3YuQGlG4=
-github.com/kaptinlin/messageformat-go v0.4.1/go.mod h1:oyflpIrEpnEwIxLgZU6f38gmwkKV/okilyeXw4D7sFY=
+github.com/kaptinlin/messageformat-go v0.4.4 h1:1aoNbVvWAvQXizeYWQg25+E60vMkQoMZkEQcaLx9k6E=
+github.com/kaptinlin/messageformat-go v0.4.4/go.mod h1:EilQjvjfj1pGOlx5U6uG3+6oqPUeJuYHP1pnmxWSAc0=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
 github.com/pelletier/go-toml/v2 v2.2.4/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
