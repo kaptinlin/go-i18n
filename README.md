@@ -5,7 +5,7 @@
 ## ✨ Features
 
 - **Token-based** (`hello_world`) and **Text-based** (`Hello, world!`) translation
-- **High Performance**: Optimized with Go 1.21-1.24 features (slices, maps, built-in functions)
+- **High Performance**: Optimized with Go 1.25 features (slices, maps, built-in functions)
 - **ICU MessageFormat v1**: Full support with [kaptinlin/messageformat-go](https://github.com/kaptinlin/messageformat-go)
 - **Flexible Loading**: From maps, files, glob patterns, or `go:embed`
 - **Smart Fallbacks**: Recursive fallback chains with language confidence matching
@@ -477,7 +477,7 @@ Fallback only works if the translation exists in default language.
 
 ## Custom Unmarshaler
 
-Translations are JSON format because `encoding/json` is the default unmarshaler. Change it by calling `WithUnmarshaler`.
+Translations are JSON format by default using `github.com/go-json-experiment/json` as the default unmarshaler. Change it by calling `WithUnmarshaler`.
 
 ### YAML Unmarshaler
 Uses [`go-yaml/yaml`](https://github.com/go-yaml/yaml) to read the files, so you can write the translation files in YAML format.
@@ -621,7 +621,7 @@ Orders of the languages that passed to `NewLocalizer` won't affect the fallback 
 
 ## Performance
 
-This library is optimized with Go 1.21-1.24 features for maximum performance:
+This library is optimized with Go 1.25 features for maximum performance:
 
 ### Optimizations Applied
 

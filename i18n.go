@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	json "github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
 	mf "github.com/kaptinlin/messageformat-go/v1"
 	"golang.org/x/text/language"
 )
@@ -93,7 +93,7 @@ func NewBundle(options ...func(*I18n)) *I18n {
 	// Pre-allocate with reasonable default capacities
 	bundle := &I18n{
 		languages:                 make([]language.Tag, 0, max(len(options), 4)), // Estimate 4 languages
-		unmarshaler:               json.Unmarshal,
+		unmarshaler:               func(data []byte, v any) error { return json.Unmarshal(data, v) },
 		fallbacks:                 make(map[string][]string, max(len(options), 4)),
 		runtimeParsedTranslations: make(map[string]*parsedTranslation, 100), // Estimate 100 translations
 		parsedTranslations:        make(map[string]map[string]*parsedTranslation, max(len(options), 4)),

@@ -61,7 +61,7 @@ This is a Go internationalization (i18n) library that provides localization supp
 
 ## Recent Modernization (2024)
 
-This codebase has been modernized with Go 1.21-1.24 features for enhanced performance:
+This codebase has been modernized with Go 1.25 features for enhanced performance:
 
 ### Performance Optimizations Applied
 - **Built-in Functions**: Uses `min()`, `max()` for efficient operations and capacity estimation
@@ -84,6 +84,6 @@ This codebase has been modernized with Go 1.21-1.24 features for enhanced perfor
 
 ## Configuration
 - Uses golangci-lint v2.4.0 with extensive linters enabled
-- Go 1.24.0+ required (modernized from 1.23.0)
+- Go 1.25 required (modernized from 1.23.0)
 - Test files exclude some linters (gochecknoglobals, gosec, funlen, etc.)
 - Enhanced Makefile with comprehensive targets following best practices
