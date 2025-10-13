@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/go-json-experiment/json v0.0.0-20250910080747-cc2cfa0554c3
-	github.com/kaptinlin/messageformat-go v0.4.5
+	github.com/kaptinlin/messageformat-go v0.4.6
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/text v0.29.0
