@@ -34,7 +34,7 @@ func (l *Localizer) Get(name string, data ...Vars) string {
 // optional MessageFormat variables. The context is appended as " <context>"
 // to form the lookup key (e.g., "Post <verb>").
 func (l *Localizer) GetX(name, context string, data ...Vars) string {
-	return l.Get(name+" <"+context+">", data...)
+	return l.Get(fmt.Sprintf("%s <%s>", name, context), data...)
 }
 
 // Getf returns the translation for name, then applies [fmt.Sprintf]
@@ -70,10 +70,11 @@ func (l *Localizer) lookup(name string) (*parsedTranslation, error) {
 // Without variables the raw text is returned. With variables and a
 // compiled MessageFormat function, the formatted result is returned.
 func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
-	if len(data) == 0 || pt.format == nil {
+	params := varsToParams(data)
+	if params == nil || pt.format == nil {
 		return pt.text
 	}
-	result, err := pt.format(map[string]any(data[0]))
+	result, err := pt.format(params)
 	if err != nil {
 		return pt.text
 	}
@@ -100,10 +101,7 @@ func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 		return "", fmt.Errorf("compile message: %w", err)
 	}
 
-	var params any
-	if len(data) > 0 {
-		params = map[string]any(data[0])
-	}
+	params := varsToParams(data)
 
 	result, err := compiled(params)
 	if err != nil {
@@ -115,4 +113,14 @@ func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 		return fmt.Sprintf("%v", result), nil
 	}
 	return str, nil
+}
+
+// varsToParams converts optional Vars arguments to a params value
+// suitable for a compiled MessageFormat function. Returns nil when
+// no variables are provided.
+func varsToParams(data []Vars) any {
+	if len(data) == 0 {
+		return nil
+	}
+	return map[string]any(data[0])
 }
