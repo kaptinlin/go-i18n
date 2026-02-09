@@ -23,11 +23,11 @@ func (l *Localizer) Locale() string {
 // variables. If no translation is found, name itself is returned as a
 // fallback.
 func (l *Localizer) Get(name string, data ...Vars) string {
-	tran, err := l.lookup(name)
+	pt, err := l.lookup(name)
 	if err != nil {
 		return name
 	}
-	return l.localize(tran, data...)
+	return l.localize(pt, data...)
 }
 
 // GetX returns the translation for name disambiguated by context, applying
@@ -40,49 +40,47 @@ func (l *Localizer) GetX(name, context string, data ...Vars) string {
 // Getf returns the translation for name, then applies [fmt.Sprintf]
 // formatting with the provided arguments. If no translation is found,
 // name itself is used as the format string.
-func (l *Localizer) Getf(name string, data ...any) string {
-	tran, err := l.lookup(name)
+func (l *Localizer) Getf(name string, args ...any) string {
+	pt, err := l.lookup(name)
 	if err != nil {
 		return name
 	}
-	return fmt.Sprintf(l.localize(tran), data...)
+	return fmt.Sprintf(l.localize(pt), args...)
 }
 
 // lookup resolves the translation for name by checking the locale's
 // pre-parsed translations first, then falling back to runtime-parsed
 // translations from the default locale.
 func (l *Localizer) lookup(name string) (*parsedTranslation, error) {
-	if tran, ok := l.bundle.parsedTranslations[l.locale][name]; ok {
-		return tran, nil
+	if pt, ok := l.bundle.parsedTranslations[l.locale][name]; ok {
+		return pt, nil
 	}
-	tran, ok := l.bundle.runtimeParsedTranslations[name]
-	if !ok {
-		var err error
-		tran, err = l.bundle.parseTranslation(l.bundle.defaultLocale, name, trimContext(name))
-		if err != nil {
-			return nil, err
-		}
+	if pt, ok := l.bundle.runtimeParsedTranslations[name]; ok {
+		return pt, nil
 	}
-	l.bundle.runtimeParsedTranslations[name] = tran
-	return tran, nil
+	pt, err := l.bundle.parseTranslation(l.bundle.defaultLocale, name, trimContext(name))
+	if err != nil {
+		return nil, err
+	}
+	l.bundle.runtimeParsedTranslations[name] = pt
+	return pt, nil
 }
 
 // localize formats a parsed translation with the given variables.
 // Without variables the raw text is returned. With variables and a
 // compiled MessageFormat function, the formatted result is returned.
-func (l *Localizer) localize(tran *parsedTranslation, data ...Vars) string {
-	if len(data) == 0 {
-		return tran.text
+func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
+	if len(data) == 0 || pt.format == nil {
+		return pt.text
 	}
-	if tran.format != nil {
-		result, err := tran.format(map[string]any(data[0]))
-		if err == nil {
-			if str, ok := result.(string); ok {
-				return str
-			}
-		}
+	result, err := pt.format(map[string]any(data[0]))
+	if err != nil {
+		return pt.text
 	}
-	return tran.text
+	if str, ok := result.(string); ok {
+		return str
+	}
+	return pt.text
 }
 
 // Format compiles and formats a MessageFormat message directly, bypassing
@@ -92,12 +90,12 @@ func (l *Localizer) localize(tran *parsedTranslation, data ...Vars) string {
 func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 	base, _ := language.MustParse(l.locale).Base()
 
-	messageFormat, err := mf.New(base.String(), l.bundle.mfOptions)
+	formatter, err := mf.New(base.String(), l.bundle.mfOptions)
 	if err != nil {
 		return "", fmt.Errorf("create message format: %w", err)
 	}
 
-	compiled, err := messageFormat.Compile(message)
+	compiled, err := formatter.Compile(message)
 	if err != nil {
 		return "", fmt.Errorf("compile message: %w", err)
 	}
@@ -112,8 +110,9 @@ func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 		return "", fmt.Errorf("format message: %w", err)
 	}
 
-	if str, ok := result.(string); ok {
-		return str, nil
+	str, ok := result.(string)
+	if !ok {
+		return fmt.Sprintf("%v", result), nil
 	}
-	return fmt.Sprintf("%v", result), nil
+	return str, nil
 }
