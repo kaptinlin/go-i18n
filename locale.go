@@ -1,21 +1,19 @@
 package i18n
 
-import (
-	"slices"
+import "golang.org/x/text/language"
 
-	"golang.org/x/text/language"
-)
-
-// MatchAvailableLocale return one of the available locales
+// MatchAvailableLocale returns the best matching locale from the bundle's
+// supported locales for the given Accept-Language header values. If no
+// match is found, the default locale is returned.
 func (bundle *I18n) MatchAvailableLocale(locales ...string) string {
-	var tags []language.Tag
+	// Estimate capacity: most Accept-Language headers contain 2-4 tags.
+	tags := make([]language.Tag, 0, max(len(locales)*3, 4))
 
 	for _, accept := range locales {
 		desired, _, err := language.ParseAcceptLanguage(accept)
 		if err != nil {
 			continue
 		}
-		tags = slices.Grow(tags, len(desired)) // Pre-allocate capacity
 		tags = append(tags, desired...)
 	}
 
