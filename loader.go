@@ -9,47 +9,40 @@ import (
 	"slices"
 )
 
-// LoadMessages loads the translations from the map.
-func (b *I18n) LoadMessages(languages map[string]map[string]string) error {
-	for locale, translations := range languages {
-		locale = b.matchExactLocale(locale)
+// LoadMessages populates the bundle with translations from the given
+// locale-keyed map. Locales that do not match any configured locale are
+// silently skipped.
+func (b *I18n) LoadMessages(msgs map[string]map[string]string) error {
+	for loc, texts := range msgs {
+		locale := b.matchExactLocale(loc)
+		if locale == "" {
+			continue
+		}
 
-		if locale != "" {
-			if _, ok := b.parsedTranslations[locale]; !ok {
-				b.parsedTranslations[locale] = make(map[string]*parsedTranslation)
-			}
+		if _, ok := b.parsedTranslations[locale]; !ok {
+			b.parsedTranslations[locale] = make(map[string]*parsedTranslation)
+		}
 
-			for name, text := range translations {
-				trans, err := b.parseTranslation(locale, name, text)
-				if err != nil {
-					return err
-				}
-				b.parsedTranslations[locale][name] = trans
+		for name, text := range texts {
+			pt, err := b.parseTranslation(locale, name, text)
+			if err != nil {
+				return err
 			}
+			b.parsedTranslations[locale][name] = pt
 		}
 	}
 	b.formatFallbacks()
 	return nil
 }
 
-// LoadFiles loads the translations from the given file paths.
+// LoadFiles loads translations from the given file paths.
 func (b *I18n) LoadFiles(files ...string) error {
-	data := make(map[string]map[string]string)
-
-	for _, file := range files {
-		raw, err := os.ReadFile(file) //nolint:gosec
-		if err != nil {
-			return fmt.Errorf("read translation file %q: %w", file, err)
-		}
-		if err := b.mergeTranslation(data, file, raw); err != nil {
-			return err
-		}
-	}
-	return b.LoadMessages(data)
+	return b.loadFiles(files, func(name string) ([]byte, error) {
+		return os.ReadFile(name) //nolint:gosec
+	})
 }
 
-// LoadGlob loads the translations from files matching the specified
-// glob patterns.
+// LoadGlob loads translations from files matching the given glob patterns.
 func (b *I18n) LoadGlob(patterns ...string) error {
 	files, err := collectGlobs(patterns, func(p string) ([]string, error) {
 		return filepath.Glob(p)
@@ -68,46 +61,54 @@ func (b *I18n) LoadFS(fsys fs.FS, patterns ...string) error {
 	if err != nil {
 		return err
 	}
+	return b.loadFiles(files, func(name string) ([]byte, error) {
+		return fs.ReadFile(fsys, name)
+	})
+}
 
-	data := make(map[string]map[string]string)
-	for _, file := range files {
-		raw, err := fs.ReadFile(fsys, file)
+// loadFiles reads each file using readFn, unmarshals the contents,
+// and loads the resulting translations into the bundle.
+func (b *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) error {
+	msgs := make(map[string]map[string]string)
+	for _, f := range files {
+		raw, err := readFn(f)
 		if err != nil {
-			return fmt.Errorf("read translation file %q: %w", file, err)
+			return fmt.Errorf("read translation file %q: %w", f, err)
 		}
-		if err := b.mergeTranslation(data, file, raw); err != nil {
+		if err := b.mergeTranslation(msgs, f, raw); err != nil {
 			return err
 		}
 	}
-	return b.LoadMessages(data)
+	return b.LoadMessages(msgs)
 }
 
-// mergeTranslation unmarshals raw file bytes and merges the resulting
-// translations into data, keyed by the locale derived from the file name.
-func (b *I18n) mergeTranslation(data map[string]map[string]string, file string, raw []byte) error {
-	var trans map[string]string
-	if err := b.unmarshaler(raw, &trans); err != nil {
+// mergeTranslation unmarshals raw bytes from file and merges the
+// resulting key-value pairs into msgs, keyed by the locale derived
+// from the file name.
+func (b *I18n) mergeTranslation(msgs map[string]map[string]string, file string, raw []byte) error {
+	var kv map[string]string
+	if err := b.unmarshaler(raw, &kv); err != nil {
 		return fmt.Errorf("unmarshal translation file %q: %w", file, err)
 	}
 	locale := nameInsensitive(file)
-	if _, ok := data[locale]; !ok {
-		data[locale] = make(map[string]string, len(trans))
+	if _, ok := msgs[locale]; !ok {
+		msgs[locale] = make(map[string]string, len(kv))
 	}
-	maps.Copy(data[locale], trans)
+	maps.Copy(msgs[locale], kv)
 	return nil
 }
 
 // collectGlobs expands each pattern using globFn, deduplicates the
 // results, and returns them in sorted order.
 func collectGlobs(patterns []string, globFn func(string) ([]string, error)) ([]string, error) {
-	var files []string
+	var paths []string
 	for _, p := range patterns {
 		matches, err := globFn(p)
 		if err != nil {
-			return nil, fmt.Errorf("glob pattern %q: %w", p, err)
+			return nil, fmt.Errorf("expand glob %q: %w", p, err)
 		}
-		files = append(files, matches...)
+		paths = append(paths, matches...)
 	}
-	slices.Sort(files)
-	return slices.Compact(files), nil
+	slices.Sort(paths)
+	return slices.Compact(paths), nil
 }
