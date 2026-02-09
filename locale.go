@@ -5,7 +5,7 @@ import "golang.org/x/text/language"
 // MatchAvailableLocale returns the best matching locale from the bundle's
 // supported locales for the given Accept-Language header values. If no
 // match is found, the default locale is returned.
-func (bundle *I18n) MatchAvailableLocale(locales ...string) string {
+func (b *I18n) MatchAvailableLocale(locales ...string) string {
 	// Estimate capacity: most Accept-Language headers contain 2-4 tags.
 	tags := make([]language.Tag, 0, max(len(locales)*3, 4))
 
@@ -17,9 +17,9 @@ func (bundle *I18n) MatchAvailableLocale(locales ...string) string {
 		tags = append(tags, desired...)
 	}
 
-	if _, index, conf := bundle.languageMatcher.Match(tags...); conf > language.No {
-		return bundle.languages[index].String()
+	if _, index, conf := b.languageMatcher.Match(tags...); conf > language.No {
+		return b.languages[index].String()
 	}
 
-	return bundle.languages[0].String()
+	return b.languages[0].String()
 }
