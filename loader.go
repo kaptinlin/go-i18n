@@ -18,11 +18,9 @@ func (b *I18n) LoadMessages(msgs map[string]map[string]string) error {
 		if locale == "" {
 			continue
 		}
-
 		if _, ok := b.parsedTranslations[locale]; !ok {
 			b.parsedTranslations[locale] = make(map[string]*parsedTranslation)
 		}
-
 		for name, text := range texts {
 			pt, err := b.parseTranslation(locale, name, text)
 			if err != nil {
@@ -69,11 +67,11 @@ func (b *I18n) LoadFS(fsys fs.FS, patterns ...string) error {
 // loadFiles reads each file using readFn, unmarshals the contents,
 // and loads the resulting translations into the bundle.
 func (b *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) error {
-	msgs := make(map[string]map[string]string)
+	msgs := make(map[string]map[string]string, len(files))
 	for _, f := range files {
 		raw, err := readFn(f)
 		if err != nil {
-			return fmt.Errorf("read translation file %q: %w", f, err)
+			return fmt.Errorf("reading translation file %q: %w", f, err)
 		}
 		if err := b.mergeTranslation(msgs, f, raw); err != nil {
 			return err
@@ -85,10 +83,12 @@ func (b *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) er
 // mergeTranslation unmarshals raw bytes from file and merges the
 // resulting key-value pairs into msgs, keyed by the locale derived
 // from the file name.
-func (b *I18n) mergeTranslation(msgs map[string]map[string]string, file string, raw []byte) error {
+func (b *I18n) mergeTranslation(
+	msgs map[string]map[string]string, file string, raw []byte,
+) error {
 	var kv map[string]string
 	if err := b.unmarshaler(raw, &kv); err != nil {
-		return fmt.Errorf("unmarshal translation file %q: %w", file, err)
+		return fmt.Errorf("unmarshaling translation file %q: %w", file, err)
 	}
 	locale := nameInsensitive(file)
 	if _, ok := msgs[locale]; !ok {
@@ -100,12 +100,14 @@ func (b *I18n) mergeTranslation(msgs map[string]map[string]string, file string, 
 
 // collectGlobs expands each pattern using globFn, deduplicates the
 // results, and returns them in sorted order.
-func collectGlobs(patterns []string, globFn func(string) ([]string, error)) ([]string, error) {
-	var paths []string
+func collectGlobs(
+	patterns []string, globFn func(string) ([]string, error),
+) ([]string, error) {
+	paths := make([]string, 0, len(patterns)*4)
 	for _, p := range patterns {
 		matches, err := globFn(p)
 		if err != nil {
-			return nil, fmt.Errorf("expand glob %q: %w", p, err)
+			return nil, fmt.Errorf("expanding glob %q: %w", p, err)
 		}
 		paths = append(paths, matches...)
 	}
