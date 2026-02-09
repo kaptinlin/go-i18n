@@ -1,12 +1,22 @@
 package i18n
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestVarsIsMapStringAny(t *testing.T) {
+func ExampleVars() {
+	v := Vars{"name": "Alice", "count": 3}
+	fmt.Println(v["name"])
+	fmt.Println(v["count"])
+	// Output:
+	// Alice
+	// 3
+}
+
+func TestVarsMapConversion(t *testing.T) {
 	v := Vars{"name": "Alice", "count": 3}
 
 	// Vars should be directly convertible to map[string]any.
@@ -40,12 +50,21 @@ func TestVarsMixedValueTypes(t *testing.T) {
 		"slice":  []int{1, 2, 3},
 	}
 	assert.Len(t, v, 6)
-	assert.Equal(t, "hello", v["string"])
-	assert.Equal(t, 42, v["int"])
-	assert.Equal(t, 3.14, v["float"])
-	assert.Equal(t, true, v["bool"])
-	assert.Nil(t, v["nil"])
-	assert.Equal(t, []int{1, 2, 3}, v["slice"])
+
+	tests := []struct {
+		key  string
+		want any
+	}{
+		{"string", "hello"},
+		{"int", 42},
+		{"float", 3.14},
+		{"bool", true},
+		{"nil", nil},
+		{"slice", []int{1, 2, 3}},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, v[tt.key], "key %q", tt.key)
+	}
 }
 
 func TestVarsKeyLookup(t *testing.T) {
