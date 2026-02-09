@@ -341,3 +341,90 @@ func TestMessageFormatOptions(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal("Hello, World!", result)
 }
+
+func TestGetf(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {"greeting": "Hello, %s! You have %d items."},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal("Hello, Alice! You have 3 items.",
+		loc.Getf("greeting", "Alice", 3))
+}
+
+func TestGetfMissingKey(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"), WithLocales("en"))
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {"greeting": "Hello, %s!"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("en")
+	// Getf with an existing key applies Sprintf.
+	assert.Equal("Hello, Alice!", loc.Getf("greeting", "Alice"))
+	// Getf with a missing key: lookup falls through to runtime parse,
+	// then Sprintf is applied to the raw name text.
+	assert.Equal("no_such_key", loc.Getf("no_such_key"))
+}
+
+func TestLocalizeWithoutVars(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello, {name}!"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("en")
+	// Without vars, raw text is returned even if it has placeholders.
+	assert.Equal("Hello, {name}!", loc.Get("hello"))
+}
+
+func TestFormatNoVars(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+	loc := bundle.NewLocalizer("en")
+
+	result, err := loc.Format("Hello, world!")
+	assert.NoError(err)
+	assert.Equal("Hello, world!", result)
+}
+
+func TestFormatCompileError(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+	loc := bundle.NewLocalizer("en")
+
+	// Malformed MessageFormat should return an error.
+	_, err := loc.Format("{count, plural, }")
+	assert.Error(err)
+}
+
+func TestGetRuntimeParsedTranslationCache(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello"},
+		"zh-Hans": {"hello": "你好"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("zh-Hans")
+	// First call: key not in zh-Hans, triggers runtime parse from default.
+	assert.Equal("Goodbye", loc.Get("Goodbye"))
+	// Second call: should hit runtimeParsedTranslations cache.
+	assert.Equal("Goodbye", loc.Get("Goodbye"))
+}

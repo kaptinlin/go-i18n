@@ -6,6 +6,7 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/text/language"
 
 	yaml "gopkg.in/yaml.v3"
 )
@@ -116,6 +117,80 @@ func TestNameInsensitive(t *testing.T) {
 			assert.Equal(t, tt.want, nameInsensitive(tt.input))
 		})
 	}
+}
+
+func TestSupportedLanguages(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans", "ja-JP"),
+	)
+	langs := bundle.SupportedLanguages()
+	assert.Len(t, langs, 3)
+	assert.Equal(t, "en", langs[0].String())
+}
+
+func TestIsLanguageSupported(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans", "ja-JP"),
+	)
+
+	assert.True(t, bundle.IsLanguageSupported(language.English))
+	assert.True(t, bundle.IsLanguageSupported(language.Japanese))
+	assert.False(t, bundle.IsLanguageSupported(language.Afrikaans))
+}
+
+func TestMatchExactLocaleNoMatch(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	// A locale not in the bundle should return empty string.
+	got := bundle.matchExactLocale("af")
+	assert.Empty(t, got)
+}
+
+func TestNewLocalizerMatchedButNoTranslations(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	// Load translations only for en, not zh-Hans.
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello"},
+	})
+	assert.NoError(t, err)
+
+	// zh-Hans matches but has no parsedTranslations entry,
+	// so NewLocalizer should fall through to default.
+	loc := bundle.NewLocalizer("zh-Hans")
+	assert.Equal(t, "en", loc.Locale())
+}
+
+func TestNewLocalizerNoMatchFallsToDefault(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello"},
+	})
+	assert.NoError(t, err)
+
+	loc := bundle.NewLocalizer("af", "xx")
+	assert.Equal(t, "en", loc.Locale())
+}
+
+func TestNewBundleDefaultLocaleFromLocales(t *testing.T) {
+	// When no default locale is set, the first locale should be used.
+	bundle := NewBundle(WithLocales("fr", "de"))
+	assert.Equal(t, "fr", bundle.defaultLocale)
+}
+
+func TestWithLocalesInvalidIgnored(t *testing.T) {
+	// Invalid locale strings should be silently ignored.
+	bundle := NewBundle(WithLocales("en", "???invalid???"))
+	assert.Len(t, bundle.languages, 1)
 }
 
 func TestCircularFallback(t *testing.T) {
