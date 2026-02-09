@@ -32,6 +32,15 @@ type I18n struct {
 	mfOptions                 *mf.MessageFormatOptions
 }
 
+// parsedTranslation holds a pre-compiled translation with its locale, name,
+// original text, and an optional compiled MessageFormat function.
+type parsedTranslation struct {
+	locale string
+	name   string
+	text   string
+	format mf.MessageFunction
+}
+
 // WithUnmarshaler replaces the default JSON unmarshaler for translation files.
 func WithUnmarshaler(u Unmarshaler) Option {
 	return func(b *I18n) {
@@ -114,9 +123,10 @@ func NewBundle(options ...Option) *I18n {
 		o(b)
 	}
 	if b.defaultLanguage == language.Und {
-		if len(b.languages) == 0 {
+		switch {
+		case len(b.languages) == 0:
 			b.defaultLanguage = language.English
-		} else {
+		default:
 			b.defaultLanguage = b.languages[0]
 		}
 		b.defaultLocale = b.defaultLanguage.String()
@@ -185,15 +195,6 @@ func (b *I18n) NewLocalizer(locales ...string) *Localizer {
 	}
 }
 
-// parsedTranslation holds a pre-compiled translation with its locale, name,
-// original text, and an optional compiled MessageFormat function.
-type parsedTranslation struct {
-	locale string
-	name   string
-	text   string
-	format mf.MessageFunction
-}
-
 // trimContext removes the trailing context suffix (e.g., " <verb>") from a
 // translation key, returning the base key.
 func trimContext(v string) string {
@@ -247,10 +248,11 @@ func (b *I18n) formatFallbacks() {
 			if locale == b.defaultLocale {
 				continue
 			}
-			if _, ok := trans[defTrans.name]; !ok {
-				if best := b.lookupBestFallback(locale, defTrans.name); best != nil {
-					b.parsedTranslations[locale][defTrans.name] = best
-				}
+			if _, ok := trans[defTrans.name]; ok {
+				continue
+			}
+			if best := b.lookupBestFallback(locale, defTrans.name); best != nil {
+				b.parsedTranslations[locale][defTrans.name] = best
 			}
 		}
 	}
@@ -272,9 +274,7 @@ func (b *I18n) lookupFallback(locale, name string, visited map[string]struct{}) 
 
 	chain, ok := b.fallbacks[locale]
 	if !ok {
-		if v, ok := b.parsedTranslations[b.defaultLocale][name]; ok {
-			return v
-		}
+		return b.parsedTranslations[b.defaultLocale][name]
 	}
 	for _, fb := range chain {
 		if v, ok := b.parsedTranslations[fb][name]; ok {
@@ -285,8 +285,5 @@ func (b *I18n) lookupFallback(locale, name string, visited map[string]struct{}) 
 		}
 	}
 	// All explicit fallbacks exhausted; fall back to the default locale.
-	if v, ok := b.parsedTranslations[b.defaultLocale][name]; ok {
-		return v
-	}
-	return nil
+	return b.parsedTranslations[b.defaultLocale][name]
 }
