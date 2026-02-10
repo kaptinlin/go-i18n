@@ -2,7 +2,7 @@
 
 `kaptinlin/go-i18n` is a high-performance, modern localization and internationalization library for Go.
 
-## ✨ Features
+## Features
 
 - **Token-based** (`hello_world`) and **Text-based** (`Hello, world!`) translation
 - **High Performance**: Optimized with Go 1.25 features (slices, maps, built-in functions)

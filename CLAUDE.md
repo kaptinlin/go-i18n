@@ -32,7 +32,7 @@ This is a Go internationalization (i18n) library that provides localization supp
   - `Get()` for token-based translations
   - `GetX()` for context-disambiguated translations  
   - `Getf()` for sprintf-style formatting
-  - `Format()` for direct MessageFormat compilation and formatting (NEW)
+  - `Format()` for direct MessageFormat compilation and formatting
 
 ### Translation System
 - **Token-based**: Keys like `hello_world`, `button_create`
@@ -83,7 +83,7 @@ This codebase has been modernized with Go 1.25 features for enhanced performance
 - Duplicate removal: Efficient using `slices.Compact()`
 
 ## Configuration
-- Uses golangci-lint v2.4.0 with extensive linters enabled
+- Uses golangci-lint v2.7.2 with extensive linters enabled
 - Go 1.25 required (modernized from 1.23.0)
 - Test files exclude some linters (gochecknoglobals, gosec, funlen, etc.)
 - Enhanced Makefile with comprehensive targets following best practices

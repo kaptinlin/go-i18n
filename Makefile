@@ -101,4 +101,4 @@ vet: ## Run go vet
 
 .PHONY: verify
 verify: deps fmt vet lint test ## Run all verification steps (deps, format, vet, lint, test)
-	@echo "[verify] All verification steps completed successfully ✅"
+	@echo "[verify] All verification steps completed successfully"

@@ -36,5 +36,10 @@ build/
 # Mac OS files
 **/.DS_Store
 
-# todo
+# .ralphy
+.ralphy/deferred.json
+.ralphy/*.txt
+
+# todo files
 .todo
+TODO.md
