@@ -249,13 +249,13 @@ func TestTextFallbackResursive(t *testing.T) {
 func TestCustomFormatters(t *testing.T) {
 	assert := assert.New(t)
 
-	upperFormatter := func(value interface{}, locale string, arg *string) interface{} {
+	upperFormatter := func(value any, locale string, arg *string) any {
 		return strings.ToUpper(fmt.Sprintf("%v", value))
 	}
 
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
-		WithCustomFormatters(map[string]interface{}{
+		WithCustomFormatters(map[string]any{
 			"upper": upperFormatter,
 		}),
 	)

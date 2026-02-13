@@ -11,7 +11,7 @@ import (
 //go:embed locales/*
 var localesFs embed.FS
 
-func unmarshalINI(data []byte, v interface{}) error {
+func unmarshalINI(data []byte, v any) error {
 	f, err := ini.LoadSources(ini.LoadOptions{
 		SpaceBeforeInlineComment: true,
 		IgnoreInlineComment:      true,
