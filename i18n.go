@@ -144,17 +144,17 @@ func (b *I18n) SupportedLanguages() []language.Tag {
 // ensureDefaultLanguageFirst ensures the default language is the first element
 // in the languages slice, adding it if absent or moving it to the front.
 func (b *I18n) ensureDefaultLanguageFirst() {
-	if len(b.languages) == 0 {
+	switch {
+	case len(b.languages) == 0:
 		b.languages = []language.Tag{b.defaultLanguage}
+	case b.languages[0] == b.defaultLanguage:
 		return
+	default:
+		if i := slices.Index(b.languages, b.defaultLanguage); i > 0 {
+			b.languages = slices.Delete(b.languages, i, i+1)
+		}
+		b.languages = slices.Insert(b.languages, 0, b.defaultLanguage)
 	}
-	if b.languages[0] == b.defaultLanguage {
-		return
-	}
-	if i := slices.Index(b.languages, b.defaultLanguage); i > 0 {
-		b.languages = slices.Delete(b.languages, i, i+1)
-	}
-	b.languages = slices.Insert(b.languages, 0, b.defaultLanguage)
 }
 
 // matchExactLocale returns the string form of the supported locale that
@@ -218,12 +218,12 @@ func (b *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, 
 
 	formatter, err := mf.New(base.String(), b.mfOptions)
 	if err != nil {
-		return pt, nil //nolint:nilerr // Intentionally ignore error for graceful fallback
+		return pt, nil //nolint:nilerr // Graceful fallback on compilation error
 	}
 
 	compiled, err := formatter.Compile(text)
 	if err != nil {
-		return pt, nil //nolint:nilerr // Intentionally ignore error for graceful fallback
+		return pt, nil //nolint:nilerr // Graceful fallback on compilation error
 	}
 
 	pt.format = compiled

@@ -71,7 +71,7 @@ func (b *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) er
 	for _, f := range files {
 		raw, err := readFn(f)
 		if err != nil {
-			return fmt.Errorf("reading translation file %q: %w", f, err)
+			return fmt.Errorf("read file %q: %w", f, err)
 		}
 		if err := b.mergeTranslation(msgs, f, raw); err != nil {
 			return err
@@ -88,7 +88,7 @@ func (b *I18n) mergeTranslation(
 ) error {
 	var kv map[string]string
 	if err := b.unmarshaler(raw, &kv); err != nil {
-		return fmt.Errorf("unmarshaling translation file %q: %w", file, err)
+		return fmt.Errorf("unmarshal %q: %w", file, err)
 	}
 	locale := nameInsensitive(file)
 	if _, ok := msgs[locale]; !ok {
@@ -107,7 +107,7 @@ func collectGlobs(
 	for _, p := range patterns {
 		matches, err := globFn(p)
 		if err != nil {
-			return nil, fmt.Errorf("expanding glob %q: %w", p, err)
+			return nil, fmt.Errorf("expand glob %q: %w", p, err)
 		}
 		paths = append(paths, matches...)
 	}

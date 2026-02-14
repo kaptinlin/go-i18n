@@ -60,7 +60,7 @@ func TestLoadFilesReadError(t *testing.T) {
 	)
 	err := bundle.LoadFiles("nonexistent/file.json")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "reading translation file")
+	assert.Contains(t, err.Error(), "read file")
 }
 
 func TestLoadGlobInvalidPattern(t *testing.T) {
@@ -71,7 +71,7 @@ func TestLoadGlobInvalidPattern(t *testing.T) {
 	// "[" is an invalid glob pattern.
 	err := bundle.LoadGlob("[")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "expanding glob")
+	assert.Contains(t, err.Error(), "expand glob")
 }
 
 func TestLoadFSReadError(t *testing.T) {
@@ -94,7 +94,7 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 	)
 	err := bundle.LoadFS(fsys, "[")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "expanding glob")
+	assert.Contains(t, err.Error(), "expand glob")
 }
 
 func TestMergeTranslationUnmarshalError(t *testing.T) {
@@ -108,7 +108,7 @@ func TestMergeTranslationUnmarshalError(t *testing.T) {
 	)
 	err := bundle.LoadFiles("test/zh-Hans.json")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unmarshaling translation file")
+	assert.Contains(t, err.Error(), "unmarshal")
 }
 
 func TestLoadMessagesSkipsUnmatchedLocale(t *testing.T) {
