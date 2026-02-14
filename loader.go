@@ -9,9 +9,8 @@ import (
 	"slices"
 )
 
-// LoadMessages populates the bundle with translations from the given
-// locale-keyed map. Locales that do not match any configured locale are
-// silently skipped.
+// LoadMessages loads translations from a locale-keyed map.
+// Locales not matching any configured locale are silently skipped.
 func (b *I18n) LoadMessages(msgs map[string]map[string]string) error {
 	for loc, texts := range msgs {
 		locale := b.matchExactLocale(loc)
@@ -51,7 +50,7 @@ func (b *I18n) LoadGlob(patterns ...string) error {
 	return b.LoadFiles(files...)
 }
 
-// LoadFS loads translations from an [fs.FS], useful for go:embed.
+// LoadFS loads translations from an fs.FS, useful for go:embed.
 func (b *I18n) LoadFS(fsys fs.FS, patterns ...string) error {
 	files, err := collectGlobs(patterns, func(p string) ([]string, error) {
 		return fs.Glob(fsys, p)

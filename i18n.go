@@ -41,7 +41,8 @@ type parsedTranslation struct {
 	format mf.MessageFunction
 }
 
-// WithUnmarshaler replaces the default JSON unmarshaler for translation files.
+// WithUnmarshaler sets a custom unmarshaler for translation files.
+// The default is JSON. Common alternatives include YAML, TOML, and INI.
 func WithUnmarshaler(u Unmarshaler) Option {
 	return func(b *I18n) {
 		b.unmarshaler = u
@@ -49,15 +50,16 @@ func WithUnmarshaler(u Unmarshaler) Option {
 }
 
 // WithFallback configures locale fallback chains. Each key is a locale, and
-// its value is an ordered list of locales to try before the default locale.
+// its value is an ordered list of fallback locales to try when a translation
+// is missing. The default locale is used as the final fallback.
 func WithFallback(f map[string][]string) Option {
 	return func(b *I18n) {
 		b.fallbacks = f
 	}
 }
 
-// WithDefaultLocale sets the default locale, used as the ultimate fallback
-// when no translation is found in the requested or fallback locales.
+// WithDefaultLocale sets the default locale. This locale is used when no
+// translation is found in the requested locale or its fallback chain.
 func WithDefaultLocale(locale string) Option {
 	return func(b *I18n) {
 		b.defaultLanguage = language.Make(locale)
@@ -65,7 +67,7 @@ func WithDefaultLocale(locale string) Option {
 	}
 }
 
-// WithLocales configures the supported locales for the bundle.
+// WithLocales sets the supported locales for the bundle.
 // Invalid locale strings are silently ignored.
 func WithLocales(locales ...string) Option {
 	return func(b *I18n) {
@@ -87,8 +89,8 @@ func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
 	}
 }
 
-// WithCustomFormatters sets custom formatters for MessageFormat.
-// If no MessageFormat options have been set, a new options struct is created.
+// WithCustomFormatters adds custom formatters for MessageFormat.
+// Creates a new options struct if none exists.
 func WithCustomFormatters(formatters map[string]any) Option {
 	return func(b *I18n) {
 		if b.mfOptions == nil {
@@ -98,8 +100,8 @@ func WithCustomFormatters(formatters map[string]any) Option {
 	}
 }
 
-// WithStrictMode enables or disables strict parsing mode for MessageFormat.
-// If no MessageFormat options have been set, a new options struct is created.
+// WithStrictMode enables strict parsing mode for MessageFormat.
+// Creates a new options struct if none exists.
 func WithStrictMode(strict bool) Option {
 	return func(b *I18n) {
 		if b.mfOptions == nil {
@@ -167,16 +169,15 @@ func (b *I18n) matchExactLocale(locale string) string {
 	return ""
 }
 
-// IsLanguageSupported reports whether the given language tag can be matched
-// to a supported locale. Languages not returned by [I18n.SupportedLanguages]
-// may still be supported through the bundle's language matcher.
+// IsLanguageSupported reports whether lang can be matched to a supported locale.
+// Languages not in SupportedLanguages may still match through the language matcher.
 func (b *I18n) IsLanguageSupported(lang language.Tag) bool {
 	_, _, conf := b.languageMatcher.Match(lang)
 	return conf > language.No
 }
 
-// NewLocalizer creates a [Localizer] for the first matching locale from the
-// given candidates. If none match, the default locale is used.
+// NewLocalizer creates a Localizer for the first matching locale from
+// locales. If none match, the default locale is used.
 func (b *I18n) NewLocalizer(locales ...string) *Localizer {
 	selected := b.defaultLocale
 	for _, loc := range locales {

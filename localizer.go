@@ -19,9 +19,8 @@ func (l *Localizer) Locale() string {
 	return l.locale
 }
 
-// Get returns the translation for name, applying optional MessageFormat
-// variables. If no translation is found, name itself is returned as a
-// fallback.
+// Get returns the translation for name with optional MessageFormat variables.
+// Returns name as fallback if no translation is found.
 func (l *Localizer) Get(name string, data ...Vars) string {
 	pt, err := l.lookup(name)
 	if err != nil {
@@ -30,16 +29,15 @@ func (l *Localizer) Get(name string, data ...Vars) string {
 	return l.localize(pt, data...)
 }
 
-// GetX returns the translation for name disambiguated by context, applying
-// optional MessageFormat variables. The context is appended as " <context>"
-// to form the lookup key (e.g., "Post <verb>").
+// GetX returns the translation for name disambiguated by context.
+// The context is appended as " <context>" to form the lookup key.
+// For example, GetX("Post", "verb") looks up "Post <verb>".
 func (l *Localizer) GetX(name, context string, data ...Vars) string {
 	return l.Get(fmt.Sprintf("%s <%s>", name, context), data...)
 }
 
-// Getf returns the translation for name, then applies [fmt.Sprintf]
-// formatting with the provided arguments. If no translation is found,
-// name itself is used as the format string.
+// Getf returns the translation for name formatted with fmt.Sprintf.
+// Uses name as the format string if no translation is found.
 func (l *Localizer) Getf(name string, args ...any) string {
 	pt, err := l.lookup(name)
 	if err != nil {
@@ -84,16 +82,15 @@ func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 	return pt.text
 }
 
-// Format compiles and formats a MessageFormat message directly, bypassing
-// the translation lookup. This is useful for formatting dynamic messages
-// that are not stored in translation files. Returns the formatted string
-// or an error if compilation or formatting fails.
+// Format compiles and formats a MessageFormat message directly.
+// This bypasses translation lookup and is useful for dynamic messages
+// not stored in translation files.
 func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 	base, _ := language.MustParse(l.locale).Base()
 
 	formatter, err := mf.New(base.String(), l.bundle.mfOptions)
 	if err != nil {
-		return "", fmt.Errorf("create message format: %w", err)
+		return "", fmt.Errorf("create formatter: %w", err)
 	}
 
 	compiled, err := formatter.Compile(message)
