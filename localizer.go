@@ -76,10 +76,11 @@ func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 	if err != nil {
 		return pt.text
 	}
-	if str, ok := result.(string); ok {
-		return str
+	str, ok := result.(string)
+	if !ok {
+		return pt.text
 	}
-	return pt.text
+	return str
 }
 
 // Format compiles and formats a MessageFormat message directly.

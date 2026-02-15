@@ -17,7 +17,7 @@ func (b *I18n) LoadMessages(msgs map[string]map[string]string) error {
 		if locale == "" {
 			continue
 		}
-		if _, ok := b.parsedTranslations[locale]; !ok {
+		if b.parsedTranslations[locale] == nil {
 			b.parsedTranslations[locale] = make(map[string]*parsedTranslation)
 		}
 		for name, text := range texts {
@@ -90,7 +90,7 @@ func (b *I18n) mergeTranslation(
 		return fmt.Errorf("unmarshal %q: %w", file, err)
 	}
 	locale := nameInsensitive(file)
-	if _, ok := msgs[locale]; !ok {
+	if msgs[locale] == nil {
 		msgs[locale] = make(map[string]string, len(kv))
 	}
 	maps.Copy(msgs[locale], kv)

@@ -125,10 +125,9 @@ func NewBundle(options ...Option) *I18n {
 		o(b)
 	}
 	if b.defaultLanguage == language.Und {
-		switch {
-		case len(b.languages) == 0:
+		if len(b.languages) == 0 {
 			b.defaultLanguage = language.English
-		default:
+		} else {
 			b.defaultLanguage = b.languages[0]
 		}
 		b.defaultLocale = b.defaultLanguage.String()
@@ -146,17 +145,17 @@ func (b *I18n) SupportedLanguages() []language.Tag {
 // ensureDefaultLanguageFirst ensures the default language is the first element
 // in the languages slice, adding it if absent or moving it to the front.
 func (b *I18n) ensureDefaultLanguageFirst() {
-	switch {
-	case len(b.languages) == 0:
+	if len(b.languages) == 0 {
 		b.languages = []language.Tag{b.defaultLanguage}
-	case b.languages[0] == b.defaultLanguage:
 		return
-	default:
-		if i := slices.Index(b.languages, b.defaultLanguage); i > 0 {
-			b.languages = slices.Delete(b.languages, i, i+1)
-		}
-		b.languages = slices.Insert(b.languages, 0, b.defaultLanguage)
 	}
+	if b.languages[0] == b.defaultLanguage {
+		return
+	}
+	if i := slices.Index(b.languages, b.defaultLanguage); i > 0 {
+		b.languages = slices.Delete(b.languages, i, i+1)
+	}
+	b.languages = slices.Insert(b.languages, 0, b.defaultLanguage)
 }
 
 // matchExactLocale returns the string form of the supported locale that
@@ -179,20 +178,21 @@ func (b *I18n) IsLanguageSupported(lang language.Tag) bool {
 // NewLocalizer creates a Localizer for the first matching locale from
 // locales. If none match, the default locale is used.
 func (b *I18n) NewLocalizer(locales ...string) *Localizer {
-	selected := b.defaultLocale
 	for _, loc := range locales {
 		matched := b.matchExactLocale(loc)
 		if matched == "" {
 			continue
 		}
 		if _, ok := b.parsedTranslations[matched]; ok {
-			selected = matched
-			break
+			return &Localizer{
+				bundle: b,
+				locale: matched,
+			}
 		}
 	}
 	return &Localizer{
 		bundle: b,
-		locale: selected,
+		locale: b.defaultLocale,
 	}
 }
 
@@ -285,6 +285,5 @@ func (b *I18n) lookupFallback(locale, name string, visited map[string]struct{}) 
 			return found
 		}
 	}
-	// All explicit fallbacks exhausted; fall back to the default locale.
 	return b.parsedTranslations[b.defaultLocale][name]
 }
