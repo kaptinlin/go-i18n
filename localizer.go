@@ -33,7 +33,7 @@ func (l *Localizer) Get(name string, data ...Vars) string {
 // The context is appended as " <context>" to form the lookup key.
 // For example, GetX("Post", "verb") looks up "Post <verb>".
 func (l *Localizer) GetX(name, context string, data ...Vars) string {
-	return l.Get(fmt.Sprintf("%s <%s>", name, context), data...)
+	return l.Get(name+" <"+context+">", data...)
 }
 
 // Getf returns the translation for name formatted with fmt.Sprintf.
@@ -68,8 +68,11 @@ func (l *Localizer) lookup(name string) (*parsedTranslation, error) {
 // Without variables the raw text is returned. With variables and a
 // compiled MessageFormat function, the formatted result is returned.
 func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
+	if pt.format == nil {
+		return pt.text
+	}
 	params := varsToParams(data)
-	if params == nil || pt.format == nil {
+	if params == nil {
 		return pt.text
 	}
 	result, err := pt.format(params)

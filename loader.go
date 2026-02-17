@@ -18,7 +18,7 @@ func (b *I18n) LoadMessages(msgs map[string]map[string]string) error {
 			continue
 		}
 		if b.parsedTranslations[locale] == nil {
-			b.parsedTranslations[locale] = make(map[string]*parsedTranslation)
+			b.parsedTranslations[locale] = make(map[string]*parsedTranslation, len(texts))
 		}
 		for name, text := range texts {
 			pt, err := b.parseTranslation(locale, name, text)
