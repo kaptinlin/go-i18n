@@ -48,7 +48,8 @@ func (l *Localizer) Getf(name string, args ...any) string {
 
 // lookup resolves the translation for name by checking the locale's
 // pre-parsed translations first, then falling back to runtime-parsed
-// translations from the default locale.
+// translations from the default locale. If no translation exists, it
+// creates a new runtime translation using the name as the text.
 func (l *Localizer) lookup(name string) (*parsedTranslation, error) {
 	if pt, ok := l.bundle.parsedTranslations[l.locale][name]; ok {
 		return pt, nil
@@ -118,7 +119,7 @@ func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 
 // varsToParams converts optional Vars arguments to a params value
 // suitable for a compiled MessageFormat function. Returns nil when
-// no variables are provided.
+// no variables are provided. Only the first Vars argument is used.
 func varsToParams(data []Vars) any {
 	if len(data) == 0 {
 		return nil
