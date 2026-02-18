@@ -73,7 +73,7 @@ func (i *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) er
 			return fmt.Errorf("read file %q: %w", f, err)
 		}
 		if err := i.mergeTranslation(msgs, f, raw); err != nil {
-			return err
+			return fmt.Errorf("merge translation: %w", err)
 		}
 	}
 	return i.LoadMessages(msgs)
