@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/text/language"
 
-	yaml "gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 )
 
 //go:embed test/*.json

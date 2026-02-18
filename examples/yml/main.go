@@ -4,8 +4,8 @@ import (
 	"embed"
 	"fmt"
 
+	"github.com/goccy/go-yaml"
 	"github.com/kaptinlin/go-i18n"
-	"gopkg.in/yaml.v3"
 )
 
 //go:embed locales/*
