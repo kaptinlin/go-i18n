@@ -21,14 +21,20 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install Task
+        uses: go-task/setup-task@v1
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download dependencies
-        run: make deps
+        run: task deps
 
       - name: Run tests
-        run: make test
+        run: task test
 
       - name: Run benchmarks
-        run: make bench
+        run: task bench
 
   lint:
     name: Lint
@@ -43,17 +49,24 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install Task
+        uses: go-task/setup-task@v1
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download dependencies
-        run: make deps
+        run: task deps
 
       - name: Run linters
-        run: make lint
+        run: task lint
 
       - name: Check formatting
         run: |
-          make fmt
+          task fmt
           git diff --exit-code
 
       - name: Run go vet
-        run: make vet
+        run: task vet
+
 
