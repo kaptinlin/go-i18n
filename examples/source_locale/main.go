@@ -14,7 +14,7 @@ func main() {
 	)
 
 	// Load translations
-	bundle.LoadMessages(map[string]map[string]string{
+	err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"hello":   "Hello, {name}!",
 			"goodbye": "Goodbye, {name}!",
@@ -24,6 +24,9 @@ func main() {
 			// Note: "goodbye" is not translated in zh-Hans
 		},
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	localizer := bundle.NewLocalizer("zh-Hans")
 
@@ -44,12 +47,15 @@ func main() {
 	fmt.Println("\n=== GetXWithLocale Examples ===")
 
 	// Add context-based translations
-	bundle.LoadMessages(map[string]map[string]string{
+	err = bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {
 			"Post <verb>": "发布文章",
 			"Post <noun>": "文章",
 		},
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	text, locale, err = localizer.GetXWithLocale("Post", "verb")
 	printResult("Post (verb)", text, locale, err)
@@ -63,11 +69,14 @@ func main() {
 	// This is different from GetWithLocale which uses MessageFormat variables ({name})
 
 	// First, let's load a sprintf-style translation
-	bundle.LoadMessages(map[string]map[string]string{
+	err = bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {
 			"greeting": "你好，%s！",
 		},
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	text, locale, err = localizer.GetfWithLocale("greeting", "Alice")
 	printResult("greeting (sprintf)", text, locale, err)
