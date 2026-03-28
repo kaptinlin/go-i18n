@@ -215,3 +215,72 @@ func TestCircularFallback(t *testing.T) {
 	// Should fall through to default locale without hanging.
 	assert.Equal("Hello", localizer.Get("hello"))
 }
+
+func TestParseTranslationSuccess(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+
+	pt, err := bundle.parseTranslation("en", "test_key", "Hello, {name}!")
+	assert.NoError(err)
+	assert.NotNil(pt)
+	assert.Equal("test_key", pt.name)
+	assert.Equal("en", pt.locale)
+	assert.Equal("Hello, {name}!", pt.text)
+	assert.NotNil(pt.format) // MessageFormat should be compiled successfully
+}
+
+func TestParseTranslationInvalidMessageFormat(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+
+	// Invalid MessageFormat syntax (unclosed brace)
+	pt, err := bundle.parseTranslation("en", "test_key", "Hello, {name")
+	assert.ErrorIs(err, ErrMessageFormatCompilation)
+	assert.NotNil(pt) // Returns pt with raw text even on error
+	assert.Equal("Hello, {name", pt.text)
+	assert.Nil(pt.format) // No compiled format available
+}
+
+func TestParseTranslationEmptyMessageFormat(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+
+	// Empty message should compile successfully (just no formatting)
+	pt, err := bundle.parseTranslation("en", "test_key", "")
+	assert.NoError(err)
+	assert.NotNil(pt)
+	assert.Equal("", pt.text)
+}
+
+func TestParseTranslationComplexMessageFormat(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+
+	// Complex MessageFormat with plural
+	pt, err := bundle.parseTranslation("en", "test_key", "{count, plural, =0 {none} one {# item} other {# items}}")
+	assert.NoError(err)
+	assert.NotNil(pt)
+	assert.NotNil(pt.format)
+}
+
+func TestErrMessageFormatCompilationWrapping(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {"valid": "Hello"},
+	})
+	assert.NoError(err)
+
+	localizer := bundle.NewLocalizer("zh-Hans")
+
+	// Trigger runtime fallback with invalid MessageFormat syntax
+	// The key itself will be used as text and parsed as MessageFormat
+	text, locale, err := localizer.GetWithLocale("{invalid syntax")
+	assert.Equal("{invalid syntax", text)
+	assert.Equal("en", locale)
+	assert.ErrorIs(err, ErrTranslationNotFound)
+	assert.ErrorIs(err, ErrMessageFormatCompilation) // Should be wrapped
+}

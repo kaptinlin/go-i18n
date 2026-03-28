@@ -428,3 +428,151 @@ func TestGetRuntimeParsedTranslationCache(t *testing.T) {
 	// Second call: should hit runtimeParsedTranslations cache.
 	assert.Equal("Goodbye", loc.Get("Goodbye"))
 }
+
+func TestGetWithLocale(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello", "bye": "Goodbye"},
+		"zh-Hans": {"hello": "你好"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("zh-Hans")
+
+	// Test getting translation from current locale
+	text, sourceLocale, err := loc.GetWithLocale("hello")
+	assert.Equal("你好", text)
+	assert.Equal("zh-Hans", sourceLocale)
+	assert.NoError(err)
+
+	// Test fallback to default locale
+	text, sourceLocale, err = loc.GetWithLocale("bye")
+	assert.Equal("Goodbye", text)
+	assert.Equal("en", sourceLocale)
+	assert.NoError(err)
+
+	// Test missing key returns key as text with default locale and ErrTranslationNotFound
+	text, sourceLocale, err = loc.GetWithLocale("nonexistent")
+	assert.Equal("nonexistent", text)
+	assert.Equal("en", sourceLocale)
+	assert.ErrorIs(err, ErrTranslationNotFound)
+}
+
+func TestGetXWithLocale(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":        {"Post <verb>": "Post", "Post <noun>": "Post"},
+		"zh-Hans":   {"Post <verb>": "发表", "Post <noun>": "帖子"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("zh-Hans")
+
+	text, sourceLocale, err := loc.GetXWithLocale("Post", "verb")
+	assert.Equal("发表", text)
+	assert.Equal("zh-Hans", sourceLocale)
+	assert.NoError(err)
+
+	text, sourceLocale, err = loc.GetXWithLocale("Post", "noun")
+	assert.Equal("帖子", text)
+	assert.Equal("zh-Hans", sourceLocale)
+	assert.NoError(err)
+}
+
+func TestGetfWithLocale(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"greeting": "Hello, %s!"},
+		"zh-Hans": {"greeting": "你好，%s！"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("zh-Hans")
+
+	text, sourceLocale, err := loc.GetfWithLocale("greeting", "Alice")
+	assert.Equal("你好，Alice！", text)
+	assert.Equal("zh-Hans", sourceLocale)
+	assert.NoError(err)
+
+	// Test missing key - returns name as-is with no formatting applied and ErrTranslationNotFound
+	text, sourceLocale, err = loc.GetfWithLocale("nonexistent", "Alice")
+	assert.Equal("nonexistent", text)
+	assert.Equal("en", sourceLocale)
+	assert.ErrorIs(err, ErrTranslationNotFound)
+}
+
+func TestGetWithLocaleFallbackChain(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans", "ja-JP"),
+		WithFallback(map[string][]string{
+			"ja-JP": {"zh-Hans"},
+		}),
+	)
+	// Load translations for all locales
+	// Note: formatFallbacks iterates over defaultLocale (en) keys to fill missing translations
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello", "shared_key": "English"},
+		"zh-Hans": {"hello": "你好", "shared_key": "Chinese"},
+		"ja-JP":   {"hello": "こんにちは"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("ja-JP")
+
+	// Test direct hit in ja-JP
+	text, locale, err := loc.GetWithLocale("hello")
+	assert.Equal("こんにちは", text)
+	assert.Equal("ja-JP", locale)
+	assert.NoError(err)
+
+	// Test ja-JP -> zh-Hans fallback (configured in WithFallback)
+	// shared_key is in en (default) and zh-Hans (fallback)
+	// formatFallbacks fills ja-JP from zh-Hans during loading (best fallback)
+	text, locale, err = loc.GetWithLocale("shared_key")
+	assert.Equal("Chinese", text)
+	assert.Equal("zh-Hans", locale)
+	assert.NoError(err)
+}
+
+
+
+func TestGetWithLocaleWithVars(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"greeting": "Hello, {name}!"},
+		"zh-Hans": {"greeting": "你好，{name}！"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("zh-Hans")
+
+	// With MessageFormat variables
+	text, locale, err := loc.GetWithLocale("greeting", Vars{"name": "World"})
+	assert.Equal("你好，World！", text)
+	assert.Equal("zh-Hans", locale)
+	assert.NoError(err)
+
+	// Fallback with variables
+	text, locale, err = loc.GetWithLocale("unknown", Vars{"name": "Test"})
+	assert.Equal("unknown", text) // Key returned as-is
+	assert.Equal("en", locale)
+	assert.ErrorIs(err, ErrTranslationNotFound)
+}
