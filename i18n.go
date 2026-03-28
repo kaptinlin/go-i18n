@@ -1,6 +1,8 @@
 package i18n
 
 import (
+	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -8,6 +10,13 @@ import (
 	"github.com/go-json-experiment/json"
 	mf "github.com/kaptinlin/messageformat-go/v1"
 	"golang.org/x/text/language"
+)
+
+// Errors related to translation loading and compilation.
+var (
+	// ErrMessageFormatCompilation indicates that MessageFormat template compilation failed.
+	// The translation text is returned as-is without formatting capabilities.
+	ErrMessageFormatCompilation = errors.New("messageformat compilation failed")
 )
 
 // Unmarshaler unmarshals translation files. Common implementations include
@@ -206,8 +215,8 @@ func trimContext(v string) string {
 }
 
 // parseTranslation compiles a translation text into a parsedTranslation.
-// If MessageFormat compilation fails, it returns the translation with the raw
-// text as a graceful fallback.
+// Returns [ErrMessageFormatCompilation] if MessageFormat compilation fails,
+// along with a parsedTranslation that contains the raw text (usable without formatting).
 func (i *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, error) {
 	pt := &parsedTranslation{
 		name:   name,
@@ -219,12 +228,12 @@ func (i *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, 
 
 	formatter, err := mf.New(base.String(), i.mfOptions)
 	if err != nil {
-		return pt, nil //nolint:nilerr // Graceful fallback on compilation error
+		return pt, fmt.Errorf("%w: create formatter: %w", ErrMessageFormatCompilation, err)
 	}
 
 	compiled, err := formatter.Compile(text)
 	if err != nil {
-		return pt, nil //nolint:nilerr // Graceful fallback on compilation error
+		return pt, fmt.Errorf("%w: %w", ErrMessageFormatCompilation, err)
 	}
 
 	pt.format = compiled

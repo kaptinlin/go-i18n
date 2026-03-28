@@ -1,11 +1,17 @@
 package i18n
 
 import (
+	"errors"
 	"fmt"
 
 	mf "github.com/kaptinlin/messageformat-go/v1"
 	"golang.org/x/text/language"
 )
+
+// ErrTranslationNotFound indicates that a translation was not found in any
+// of the loaded translations for the requested locale or its fallback chain.
+// A runtime fallback translation is created using the key itself as the text.
+var ErrTranslationNotFound = errors.New("translation not found")
 
 // Localizer provides translation methods for a specific locale. Create one
 // via [I18n.NewLocalizer].
@@ -22,10 +28,7 @@ func (l *Localizer) Locale() string {
 // Get returns the translation for name with optional MessageFormat variables.
 // Returns name as fallback if no translation is found.
 func (l *Localizer) Get(name string, data ...Vars) string {
-	pt, err := l.lookup(name)
-	if err != nil {
-		return name
-	}
+	pt, _ := l.lookup(name)
 	return l.localize(pt, data...)
 }
 
@@ -36,33 +39,67 @@ func (l *Localizer) GetX(name, context string, data ...Vars) string {
 	return l.Get(name+" <"+context+">", data...)
 }
 
+// GetWithLocale returns the translation for name with optional MessageFormat variables,
+// along with the source locale where the translation was found.
+// If the translation is not found in the loaded translations, it returns [ErrTranslationNotFound]
+// and the source locale will be the default locale where the runtime fallback was created.
+func (l *Localizer) GetWithLocale(name string, data ...Vars) (text string, sourceLocale string, err error) {
+	pt, err := l.lookup(name)
+	return l.localize(pt, data...), pt.locale, err
+}
+
+// GetXWithLocale returns the translation for name disambiguated by context,
+// along with the source locale where the translation was found.
+// If the translation is not found, it returns [ErrTranslationNotFound].
+// The context is appended as " <context>" to form the lookup key.
+// For example, GetXWithLocale("Post", "verb") looks up "Post <verb>".
+func (l *Localizer) GetXWithLocale(name, context string, data ...Vars) (text string, sourceLocale string, err error) {
+	return l.GetWithLocale(name+" <"+context+">", data...)
+}
+
 // Getf returns the translation for name formatted with fmt.Sprintf.
 // Uses name as the format string if no translation is found.
 func (l *Localizer) Getf(name string, args ...any) string {
+	pt, _ := l.lookup(name)
+	return fmt.Sprintf(l.localize(pt), args...)
+}
+
+// GetfWithLocale returns the translation for name formatted with fmt.Sprintf,
+// along with the source locale where the translation was found.
+// If the translation is not found, it returns [ErrTranslationNotFound].
+// Note: If the translation is not found, the returned text will be the key itself
+// (not formatted) to avoid fmt.Sprintf errors with missing arguments.
+func (l *Localizer) GetfWithLocale(name string, args ...any) (text string, sourceLocale string, err error) {
 	pt, err := l.lookup(name)
 	if err != nil {
-		return name
+		// Return the key as-is without formatting to avoid %!EXTRA errors
+		return name, pt.locale, err
 	}
-	return fmt.Sprintf(l.localize(pt), args...)
+	return fmt.Sprintf(l.localize(pt), args...), pt.locale, nil
 }
 
 // lookup resolves the translation for name by checking the locale's
 // pre-parsed translations first, then falling back to runtime-parsed
 // translations from the default locale. If no translation exists, it
 // creates a new runtime translation using the name as the text.
+//
+// Returns [ErrTranslationNotFound] if the translation is not found in loaded
+// translations (runtime fallback was used). May also wrap [ErrMessageFormatCompilation]
+// if MessageFormat compilation failed during runtime fallback creation.
 func (l *Localizer) lookup(name string) (*parsedTranslation, error) {
 	if pt, ok := l.bundle.parsedTranslations[l.locale][name]; ok {
 		return pt, nil
 	}
 	if pt, ok := l.bundle.runtimeParsedTranslations[name]; ok {
-		return pt, nil
+		return pt, ErrTranslationNotFound
 	}
 	pt, err := l.bundle.parseTranslation(l.bundle.defaultLocale, name, trimContext(name))
-	if err != nil {
-		return nil, err
-	}
 	l.bundle.runtimeParsedTranslations[name] = pt
-	return pt, nil
+	if err != nil {
+		// MessageFormat compilation failed, but we still have the raw text
+		return pt, fmt.Errorf("%w: %w", ErrTranslationNotFound, err)
+	}
+	return pt, ErrTranslationNotFound
 }
 
 // localize formats a parsed translation with the given variables.

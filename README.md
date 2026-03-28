@@ -27,6 +27,7 @@
 -   [Translations](#translations)
     -   [Passing Data to Translation](#passing-data-to-translation)
     -   [Direct Formatting](#direct-formatting)
+    -   [Getting Source Locale](#getting-source-locale)
 -   [Pluralization](#pluralization)
 -   [Text-based Translations](#text-based-translations)
     -   [Disambiguation by context](#disambiguation-by-context)
@@ -471,7 +472,96 @@ en-GB -> en-US -> ja-JP
 
 Recursive fallback is also supported. If `zh-Hans` has a `zh` fallback, and `zh` has a `zh-Hant` fallback, `zh-Hans` will have either `zh` and `zh-Hant` fallbacks.
 
-Fallback only works if the translation exists in default language.
+**Important:** Fallback chains only apply to keys that exist in the default locale. If a key exists in a fallback locale but not in the default locale, it will not be automatically propagated to other locales. Ensure your default locale contains all possible translation keys.
+
+&nbsp;
+
+### Getting Source Locale
+
+When you need to know which locale provided the translation (especially useful for debugging or analytics), use the `GetWithLocale`, `GetXWithLocale`, or `GetfWithLocale` methods. These methods return the translated text, the source locale, and an error indicating whether the translation was found.
+
+```go
+text, locale, err := localizer.GetWithLocale("hello")
+if errors.Is(err, i18n.ErrTranslationNotFound) {
+    // Translation was not found in loaded translations
+    // `text` contains the fallback (key itself)
+    // `locale` is the default locale where runtime fallback was created
+} else if err != nil {
+    // Handle other errors (e.g., MessageFormat compilation failed)
+} else {
+    // Translation found successfully
+    fmt.Printf("Translated by %s: %s\n", locale, text)
+}
+```
+
+**Error Types:**
+
+| Error | Description |
+|-------|-------------|
+| `i18n.ErrTranslationNotFound` | Translation not found in loaded translations. A runtime fallback was used (key as text). |
+| `i18n.ErrMessageFormatCompilation` | MessageFormat template compilation failed. The raw text is returned without formatting. |
+
+**Notes on `GetfWithLocale`:**
+
+When using `GetfWithLocale`, if the translation is not found, the key itself is returned **without** applying `fmt.Sprintf` formatting. This prevents `%!EXTRA` errors when arguments are provided but the key doesn't exist:
+
+```go
+// Key exists: formatting is applied
+text, locale, err := localizer.GetfWithLocale("greeting", "Alice")
+// text: "Hello, Alice!", locale: "en", err: nil
+
+// Key missing: returns key as-is without formatting
+text, locale, err := localizer.GetfWithLocale("missing_key", "Alice")
+// text: "missing_key" (NOT "missing_key%!(EXTRA string=Alice)"), locale: "en", err: ErrTranslationNotFound
+```
+
+These errors can be checked with `errors.Is()`:
+
+```go
+// Check if translation was not found
+if errors.Is(err, i18n.ErrTranslationNotFound) {
+    // Handle missing translation
+}
+
+// Check for MessageFormat compilation issues
+if errors.Is(err, i18n.ErrMessageFormatCompilation) {
+    // Handle compilation error
+}
+```
+
+**Complete Example:**
+
+```go
+bundle := i18n.NewBundle(
+    i18n.WithDefaultLocale("en"),
+    i18n.WithLocales("en", "zh-Hans"),
+)
+
+bundle.LoadMessages(map[string]map[string]string{
+    "en":      {"hello": "Hello"},
+    "zh-Hans": {"hello": "你好"},
+})
+
+localizer := bundle.NewLocalizer("zh-Hans")
+
+// Successful lookup
+text, locale, err := localizer.GetWithLocale("hello")
+// text: "你好", locale: "zh-Hans", err: nil
+
+// Missing translation (fallback to default locale)
+text, locale, err := localizer.GetWithLocale("goodbye")
+// text: "goodbye", locale: "en", err: ErrTranslationNotFound
+
+// With variables
+text, locale, err := localizer.GetWithLocale("hello", i18n.Vars{"name": "World"})
+// text: "你好", locale: "zh-Hans", err: nil
+
+// With context
+text, locale, err := localizer.GetXWithLocale("Post", "verb")
+
+// With sprintf formatting
+text, locale, err := localizer.GetfWithLocale("greeting", "Alice")
+```
 
 &nbsp;
 
