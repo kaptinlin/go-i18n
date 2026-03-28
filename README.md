@@ -27,7 +27,10 @@
 -   [Translations](#translations)
     -   [Passing Data to Translation](#passing-data-to-translation)
     -   [Direct Formatting](#direct-formatting)
-    -   [Getting Source Locale](#getting-source-locale)
+-   [Translation Lookup](#translation-lookup)
+    -   [Detecting Fallback vs Direct Hit](#detecting-fallback-vs-direct-hit)
+    -   [Google AIP-193 Compliance](#google-aip-193-compliance)
+    -   [Translation Coverage Analytics](#translation-coverage-analytics)
 -   [Pluralization](#pluralization)
 -   [Text-based Translations](#text-based-translations)
     -   [Disambiguation by context](#disambiguation-by-context)
@@ -452,15 +455,15 @@ If a translation cannot be found from any language, the token name will be outpu
 
 ```go
 // `ja-jp` is the default language
-bundle :=i18n.New(
+bundle := i18n.NewBundle(
     i18n.WithDefaultLocale("ja-JP"),
     i18n.WithFallback(map[string][]string{
         // `zh-Hans` uses `zh`, `zh-Hant` as fallbacks.
         // `en-GB` uses `en-US` as fallback.
-        "zh-Hans": []string{"zh", "zh-Hant"},
-        "en-GB": []string{"en-US"},
-    },
-))
+        "zh-Hans": {"zh", "zh-Hant"},
+        "en-GB":   {"en-US"},
+    }),
+)
 ```
 
 Lookup path looks like this with the example above:
@@ -476,58 +479,24 @@ Recursive fallback is also supported. If `zh-Hans` has a `zh` fallback, and `zh`
 
 &nbsp;
 
-### Getting Source Locale
+## Translation Lookup
 
-When you need to know which locale provided the translation (especially useful for debugging or analytics), use the `GetWithLocale`, `GetXWithLocale`, or `GetfWithLocale` methods. These methods return the translated text, the source locale, and an error indicating whether the translation was found.
-
-```go
-text, locale, err := localizer.GetWithLocale("hello")
-if errors.Is(err, i18n.ErrTranslationNotFound) {
-    // Translation was not found in loaded translations
-    // `text` contains the fallback (key itself)
-    // `locale` is the default locale where runtime fallback was created
-} else if err != nil {
-    // Handle other errors (e.g., MessageFormat compilation failed)
-} else {
-    // Translation found successfully
-    fmt.Printf("Translated by %s: %s\n", locale, text)
-}
-```
-
-**Error Types:**
-
-| Error | Description |
-|-------|-------------|
-| `i18n.ErrTranslationNotFound` | Translation not found in loaded translations. A runtime fallback was used (key as text). |
-| `i18n.ErrMessageFormatCompilation` | MessageFormat template compilation failed. The raw text is returned without formatting. |
-
-**Notes on `GetfWithLocale`:**
-
-When using `GetfWithLocale`, if the translation is not found, the key itself is returned **without** applying `fmt.Sprintf` formatting. This prevents `%!EXTRA` errors when arguments are provided but the key doesn't exist:
+When you need to know which locale provided a translation — for debugging, analytics, or [Google AIP-193](https://google.aip.dev/193) compliance — use the `Lookup` method. It returns a `TranslationResult` with the translated text, source locale, and whether the key was found.
 
 ```go
-// Key exists: formatting is applied
-text, locale, err := localizer.GetfWithLocale("greeting", "Alice")
-// text: "Hello, Alice!", locale: "en", err: nil
-
-// Key missing: returns key as-is without formatting
-text, locale, err := localizer.GetfWithLocale("missing_key", "Alice")
-// text: "missing_key" (NOT "missing_key%!(EXTRA string=Alice)"), locale: "en", err: ErrTranslationNotFound
+r := localizer.Lookup("hello", i18n.Vars{"name": "World"})
+fmt.Println(r.Text)   // "你好，World！"
+fmt.Println(r.Locale) // "zh-Hans"
+fmt.Println(r.Found)  // true
 ```
 
-These errors can be checked with `errors.Is()`:
+`TranslationResult` fields:
 
-```go
-// Check if translation was not found
-if errors.Is(err, i18n.ErrTranslationNotFound) {
-    // Handle missing translation
-}
-
-// Check for MessageFormat compilation issues
-if errors.Is(err, i18n.ErrMessageFormatCompilation) {
-    // Handle compilation error
-}
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `Text` | `string` | Translated message, or the key itself if not found. Always populated. |
+| `Locale` | `string` | BCP 47 locale tag that provided the translation. Always populated. |
+| `Found` | `bool` | Whether the key existed in loaded translations. |
 
 **Complete Example:**
 
@@ -538,29 +507,72 @@ bundle := i18n.NewBundle(
 )
 
 bundle.LoadMessages(map[string]map[string]string{
-    "en":      {"hello": "Hello"},
+    "en":      {"hello": "Hello", "bye": "Goodbye"},
     "zh-Hans": {"hello": "你好"},
 })
 
 localizer := bundle.NewLocalizer("zh-Hans")
 
-// Successful lookup
-text, locale, err := localizer.GetWithLocale("hello")
-// text: "你好", locale: "zh-Hans", err: nil
+// Direct hit in requested locale
+r := localizer.Lookup("hello")
+// r.Text: "你好", r.Locale: "zh-Hans", r.Found: true
 
-// Missing translation (fallback to default locale)
-text, locale, err := localizer.GetWithLocale("goodbye")
-// text: "goodbye", locale: "en", err: ErrTranslationNotFound
+// Fallback to default locale
+r = localizer.Lookup("bye")
+// r.Text: "Goodbye", r.Locale: "en", r.Found: true
 
-// With variables
-text, locale, err := localizer.GetWithLocale("hello", i18n.Vars{"name": "World"})
-// text: "你好", locale: "zh-Hans", err: nil
+// Not found anywhere
+r = localizer.Lookup("nonexistent")
+// r.Text: "nonexistent", r.Locale: "en", r.Found: false
 
-// With context
-text, locale, err := localizer.GetXWithLocale("Post", "verb")
+// With context (use the full key convention)
+r = localizer.Lookup("Post <verb>")
+```
 
-// With sprintf formatting
-text, locale, err := localizer.GetfWithLocale("greeting", "Alice")
+&nbsp;
+
+### Detecting Fallback vs Direct Hit
+
+```go
+r := localizer.Lookup("hello")
+
+switch {
+case !r.Found:
+    // Key not in any translation file
+case r.Locale != localizer.Locale():
+    // Found, but via fallback chain
+default:
+    // Direct hit in requested locale
+}
+```
+
+&nbsp;
+
+### Google AIP-193 Compliance
+
+`TranslationResult` maps directly to [AIP-193 `LocalizedMessage`](https://google.aip.dev/193):
+
+```go
+r := localizer.Lookup("error_invalid_input", i18n.Vars{"field": fieldName})
+
+// Both fields always populated — AIP-193 compliant
+localizedMsg := &errdetails.LocalizedMessage{
+    Locale:  r.Locale, // e.g. "zh-Hans" or "en" (never empty)
+    Message: r.Text,   // e.g. "字段无效" or "error_invalid_input" (never empty)
+}
+```
+
+&nbsp;
+
+### Translation Coverage Analytics
+
+```go
+r := localizer.Lookup(key, data)
+if r.Found {
+    metrics.TranslationHit(r.Locale, key)
+} else {
+    metrics.TranslationMiss(r.Locale, key)
+}
 ```
 
 &nbsp;

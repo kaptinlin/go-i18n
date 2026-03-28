@@ -38,8 +38,14 @@ make all                 # Run lint and test
 **Localizer** - Per-locale translation interface
 - `Get(name, vars)` - Token-based translation with MessageFormat variables
 - `GetX(name, context, vars)` - Context-disambiguated translation (e.g., "Post <verb>" vs "Post <noun>")
-- `Getf(name, args)` - sprintf-style formatting
+- `Lookup(name, vars)` - Returns `TranslationResult` with text, source locale, and found status (for debugging, analytics, AIP-193)
 - `Format(message, vars)` - Direct MessageFormat compilation and formatting (bypasses translation lookup)
+- `Getf(name, args)` - **Deprecated**: sprintf-style formatting, use `Get` with MessageFormat or `fmt.Sprintf(Get(...))` instead
+
+**TranslationResult** - Detailed lookup information (maps to Google AIP-193 LocalizedMessage)
+- `Text` - Translated message, or key itself if not found (always populated)
+- `Locale` - BCP 47 locale tag that provided the translation (always populated)
+- `Found` - Whether the key existed in loaded translations
 
 **parsedTranslation** - Pre-compiled translation unit
 - Holds locale, name, text, and compiled MessageFormat function
@@ -117,6 +123,14 @@ type Localizer struct {
     locale string
 }
 
+// TranslationResult holds detailed translation lookup information.
+// Fields map directly to Google AIP-193 LocalizedMessage.
+type TranslationResult struct {
+    Text   string // Translated message or key fallback (AIP-193 message)
+    Locale string // Source locale BCP 47 tag (AIP-193 locale)
+    Found  bool   // Whether key existed in loaded translations
+}
+
 // Vars holds MessageFormat variables for interpolation
 type Vars map[string]any
 
@@ -179,7 +193,8 @@ WithStrictMode(bool)                                // Enable strict parsing
 - Benchmark critical paths (MessageFormat compilation, translation lookup)
 
 ### Test Coverage
-- Core translation functionality (Get, GetX, Getf, Format)
+- Core translation functionality (Get, GetX, Lookup, Format)
+- TranslationResult (Found, Locale, Text for direct hit, fallback, and miss)
 - File loading (LoadFiles, LoadGlob, LoadFS, LoadMessages)
 - Fallback chain resolution
 - Locale normalization and matching

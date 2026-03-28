@@ -38,6 +38,6 @@ func main() {
 		"name": "John",
 	}))
 
-	// Output: 你好，Alice
-	fmt.Println(localizer.Getf("hello_string", "Alice"))
+	// Output: 你好, Alice
+	fmt.Println(fmt.Sprintf(localizer.Get("hello_string"), "Alice"))
 }

@@ -263,7 +263,7 @@ func TestParseTranslationComplexMessageFormat(t *testing.T) {
 	assert.NotNil(pt.format)
 }
 
-func TestErrMessageFormatCompilationWrapping(t *testing.T) {
+func TestLookupInvalidMessageFormat(t *testing.T) {
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -276,11 +276,10 @@ func TestErrMessageFormatCompilationWrapping(t *testing.T) {
 
 	localizer := bundle.NewLocalizer("zh-Hans")
 
-	// Trigger runtime fallback with invalid MessageFormat syntax
-	// The key itself will be used as text and parsed as MessageFormat
-	text, locale, err := localizer.GetWithLocale("{invalid syntax")
-	assert.Equal("{invalid syntax", text)
-	assert.Equal("en", locale)
-	assert.ErrorIs(err, ErrTranslationNotFound)
-	assert.ErrorIs(err, ErrMessageFormatCompilation) // Should be wrapped
+	// Trigger runtime fallback with invalid MessageFormat syntax.
+	// The key itself will be used as text; compilation fails gracefully.
+	r := localizer.Lookup("{invalid syntax")
+	assert.Equal("{invalid syntax", r.Text)
+	assert.Equal("en", r.Locale)
+	assert.False(r.Found)
 }

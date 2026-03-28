@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/kaptinlin/go-i18n"
@@ -30,23 +29,44 @@ func main() {
 
 	localizer := bundle.NewLocalizer("zh-Hans")
 
-	fmt.Println("=== GetWithLocale Examples ===")
+	fmt.Println("=== Lookup Examples ===")
 
-	// Example 1: Successful translation lookup
-	text, locale, err := localizer.GetWithLocale("hello", i18n.Vars{"name": "World"})
-	printResult("hello", text, locale, err)
+	// Example 1: Direct hit in requested locale
+	r := localizer.Lookup("hello", i18n.Vars{"name": "World"})
+	printResult("hello", r)
 
-	// Example 2: Missing translation (falls back to default locale)
-	text, locale, err = localizer.GetWithLocale("goodbye", i18n.Vars{"name": "World"})
-	printResult("goodbye", text, locale, err)
+	// Example 2: Fallback to default locale
+	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
+	printResult("goodbye", r)
 
 	// Example 3: Translation not found anywhere
-	text, locale, err = localizer.GetWithLocale("unknown_key")
-	printResult("unknown_key", text, locale, err)
+	r = localizer.Lookup("unknown_key")
+	printResult("unknown_key", r)
 
-	fmt.Println("\n=== GetXWithLocale Examples ===")
+	fmt.Println("\n=== Detecting Fallback vs Direct Hit ===")
 
-	// Add context-based translations
+	r = localizer.Lookup("hello", i18n.Vars{"name": "World"})
+	switch {
+	case !r.Found:
+		fmt.Printf("  %q: NOT FOUND\n", "hello")
+	case r.Locale != localizer.Locale():
+		fmt.Printf("  %q: fallback from %s\n", "hello", r.Locale)
+	default:
+		fmt.Printf("  %q: direct hit in %s\n", "hello", r.Locale)
+	}
+
+	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
+	switch {
+	case !r.Found:
+		fmt.Printf("  %q: NOT FOUND\n", "goodbye")
+	case r.Locale != localizer.Locale():
+		fmt.Printf("  %q: fallback from %s\n", "goodbye", r.Locale)
+	default:
+		fmt.Printf("  %q: direct hit in %s\n", "goodbye", r.Locale)
+	}
+
+	fmt.Println("\n=== Context Disambiguation ===")
+
 	err = bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {
 			"Post <verb>": "发布文章",
@@ -57,50 +77,19 @@ func main() {
 		panic(err)
 	}
 
-	text, locale, err = localizer.GetXWithLocale("Post", "verb")
-	printResult("Post (verb)", text, locale, err)
+	// GetX for daily use
+	fmt.Printf("  GetX verb: %s\n", localizer.GetX("Post", "verb"))
+	fmt.Printf("  GetX noun: %s\n", localizer.GetX("Post", "noun"))
 
-	text, locale, err = localizer.GetXWithLocale("Post", "noun")
-	printResult("Post (noun)", text, locale, err)
-
-	fmt.Println("\n=== GetfWithLocale Examples ===")
-
-	// Note: GetfWithLocale uses fmt.Sprintf-style formatting (%s, %d, etc.)
-	// This is different from GetWithLocale which uses MessageFormat variables ({name})
-
-	// First, let's load a sprintf-style translation
-	err = bundle.LoadMessages(map[string]map[string]string{
-		"zh-Hans": {
-			"greeting": "你好，%s！",
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	text, locale, err = localizer.GetfWithLocale("greeting", "Alice")
-	printResult("greeting (sprintf)", text, locale, err)
-
-	// Missing key with GetfWithLocale - returns key as-is without formatting
-	// to avoid "%!EXTRA" errors from fmt.Sprintf
-	text, locale, err = localizer.GetfWithLocale("missing_key", "Alice")
-	printResult("missing_key (sprintf)", text, locale, err)
+	// Lookup for details
+	r = localizer.Lookup("Post <verb>")
+	printResult("Post <verb>", r)
 }
 
-func printResult(key, text, locale string, err error) {
+func printResult(key string, r i18n.TranslationResult) {
 	fmt.Printf("Key: %q\n", key)
-	fmt.Printf("  Text:   %q\n", text)
-	fmt.Printf("  Locale: %q\n", locale)
-
-	if err == nil {
-		fmt.Println("  Error:  none")
-	} else {
-		if errors.Is(err, i18n.ErrTranslationNotFound) {
-			fmt.Println("  Error:  ErrTranslationNotFound")
-		}
-		if errors.Is(err, i18n.ErrMessageFormatCompilation) {
-			fmt.Println("  Error:  ErrMessageFormatCompilation")
-		}
-	}
+	fmt.Printf("  Text:   %q\n", r.Text)
+	fmt.Printf("  Locale: %q\n", r.Locale)
+	fmt.Printf("  Found:  %v\n", r.Found)
 	fmt.Println()
 }
