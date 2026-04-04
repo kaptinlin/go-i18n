@@ -62,12 +62,7 @@ func (l *Localizer) resolve(name string) (*parsedTranslation, bool) {
 	if pt, ok := l.bundle.parsedTranslations[l.locale][name]; ok {
 		return pt, true
 	}
-	if pt, ok := l.bundle.runtimeParsedTranslations[name]; ok {
-		return pt, false
-	}
-	pt, _ := l.bundle.parseTranslation(l.bundle.defaultLocale, name, trimContext(name))
-	l.bundle.runtimeParsedTranslations[name] = pt
-	return pt, false
+	return l.bundle.getRuntimeParsedTranslation(name), false
 }
 
 // localize formats a parsed translation with the given variables.

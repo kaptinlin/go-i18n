@@ -129,6 +129,39 @@ func TestSupportedLanguages(t *testing.T) {
 	assert.Equal(t, "en", langs[0].String())
 }
 
+func TestHasTranslation(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello", "fallback": "Fallback"},
+		"zh-Hans": {"hello": "你好"},
+	})
+	assert.NoError(t, err)
+
+	assert.True(t, bundle.HasTranslation("zh-Hans", "hello"))
+	assert.True(t, bundle.HasTranslation("zh-CN", "fallback"))
+	assert.False(t, bundle.HasTranslation("zh-Hans", "missing"))
+	assert.False(t, bundle.HasTranslation("af", "hello"))
+}
+
+func TestKeys(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"b": "B", "a": "A", "shared": "Shared"},
+		"zh-Hans": {"b": "乙"},
+	})
+	assert.NoError(t, err)
+
+	assert.Equal(t, []string{"a", "b", "shared"}, bundle.Keys("en"))
+	assert.Equal(t, []string{"a", "b", "shared"}, bundle.Keys("zh-CN"))
+	assert.Nil(t, bundle.Keys("af"))
+}
+
 func TestIsLanguageSupported(t *testing.T) {
 	bundle := NewBundle(
 		WithDefaultLocale("en"),

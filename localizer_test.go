@@ -3,6 +3,7 @@ package i18n
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	mf "github.com/kaptinlin/messageformat-go/v1"
@@ -427,6 +428,40 @@ func TestGetRuntimeParsedTranslationCache(t *testing.T) {
 	assert.Equal("Goodbye", loc.Get("Goodbye"))
 	// Second call: should hit runtimeParsedTranslations cache.
 	assert.Equal("Goodbye", loc.Get("Goodbye"))
+	assert.Len(bundle.runtimeParsedTranslations, 1)
+}
+
+func TestGetRuntimeParsedTranslationCacheConcurrent(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello"},
+		"zh-Hans": {"hello": "你好"},
+	})
+	assert.NoError(err)
+
+	loc := bundle.NewLocalizer("zh-Hans")
+
+	const goroutines = 32
+	const iterations = 50
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				assert.Equal("Goodbye", loc.Get("Goodbye"))
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Len(bundle.runtimeParsedTranslations, 1)
+	assert.Equal("Goodbye", bundle.runtimeParsedTranslations["Goodbye"].text)
 }
 
 func TestLookup(t *testing.T) {

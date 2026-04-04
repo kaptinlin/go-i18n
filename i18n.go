@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/go-json-experiment/json"
 	mf "github.com/kaptinlin/messageformat-go/v1"
@@ -38,6 +39,7 @@ type I18n struct {
 	fallbacks                 map[string][]string
 	parsedTranslations        map[string]map[string]*parsedTranslation
 	runtimeParsedTranslations map[string]*parsedTranslation
+	runtimeTranslationsMu     sync.RWMutex
 	mfOptions                 *mf.MessageFormatOptions
 }
 
@@ -151,6 +153,51 @@ func (i *I18n) SupportedLanguages() []language.Tag {
 	return i.languages
 }
 
+// HasTranslation reports whether key exists for locale in the loaded bundle state.
+func (i *I18n) HasTranslation(locale, key string) bool {
+	resolved, ok := i.resolveLoadedLocale(locale)
+	if !ok {
+		return false
+	}
+	translations := i.parsedTranslations[resolved]
+	_, ok = translations[key]
+	return ok
+}
+
+// Keys returns the sorted translation keys for locale in the loaded bundle state.
+func (i *I18n) Keys(locale string) []string {
+	resolved, ok := i.resolveLoadedLocale(locale)
+	if !ok {
+		return nil
+	}
+	translations := i.parsedTranslations[resolved]
+	keys := make([]string, 0, len(translations))
+	for key := range translations {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+func (i *I18n) resolveLoadedLocale(locale string) (string, bool) {
+	if locale == "" {
+		return "", false
+	}
+	if matched := i.matchExactLocale(locale); matched != "" {
+		_, ok := i.parsedTranslations[matched]
+		return matched, ok
+	}
+
+	tag, err := language.Parse(locale)
+	if err != nil || tag == language.Und || !i.IsLanguageSupported(tag) {
+		return "", false
+	}
+
+	matched := i.resolveLocale(locale)
+	_, ok := i.parsedTranslations[matched]
+	return matched, ok
+}
+
 // ensureDefaultLanguageFirst ensures the default language is the first element
 // in the languages slice, adding it if absent or moving it to the front.
 func (i *I18n) ensureDefaultLanguageFirst() {
@@ -175,6 +222,23 @@ func (i *I18n) matchExactLocale(locale string) string {
 		return i.languages[idx].String()
 	}
 	return ""
+}
+
+func (i *I18n) resolveLocale(locale string) string {
+	if locale == "" {
+		return i.defaultLocale
+	}
+
+	_, idx, conf := i.languageMatcher.Match(language.Make(locale))
+	if conf == language.No {
+		return i.defaultLocale
+	}
+
+	matched := i.languages[idx].String()
+	if _, ok := i.parsedTranslations[matched]; ok {
+		return matched
+	}
+	return i.defaultLocale
 }
 
 // IsLanguageSupported reports whether lang can be matched to a supported locale.
@@ -248,6 +312,26 @@ func nameInsensitive(v string) string {
 		v = before
 	}
 	return strings.ToLower(strings.ReplaceAll(v, "_", "-"))
+}
+
+func (i *I18n) getRuntimeParsedTranslation(name string) *parsedTranslation {
+	i.runtimeTranslationsMu.RLock()
+	pt := i.runtimeParsedTranslations[name]
+	i.runtimeTranslationsMu.RUnlock()
+	if pt != nil {
+		return pt
+	}
+
+	i.runtimeTranslationsMu.Lock()
+	defer i.runtimeTranslationsMu.Unlock()
+
+	if pt = i.runtimeParsedTranslations[name]; pt != nil {
+		return pt
+	}
+
+	pt, _ = i.parseTranslation(i.defaultLocale, name, trimContext(name))
+	i.runtimeParsedTranslations[name] = pt
+	return pt
 }
 
 // formatFallbacks populates missing translations for each locale by looking up
