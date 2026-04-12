@@ -17,6 +17,9 @@ func (i *I18n) LoadMessages(msgs map[string]map[string]string) error {
 		if locale == "" {
 			continue
 		}
+		if i.directTranslations[locale] == nil {
+			i.directTranslations[locale] = make(map[string]*parsedTranslation, len(texts))
+		}
 		if i.parsedTranslations[locale] == nil {
 			i.parsedTranslations[locale] = make(map[string]*parsedTranslation, len(texts))
 		}
@@ -25,6 +28,7 @@ func (i *I18n) LoadMessages(msgs map[string]map[string]string) error {
 			if err != nil {
 				return err
 			}
+			i.directTranslations[locale][name] = pt
 			i.parsedTranslations[locale][name] = pt
 		}
 	}
@@ -73,7 +77,7 @@ func (i *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) er
 			return fmt.Errorf("read file %q: %w", f, err)
 		}
 		if err := i.mergeTranslation(msgs, f, raw); err != nil {
-			return fmt.Errorf("merge translation: %w", err)
+			return fmt.Errorf("load translations from %q: %w", f, err)
 		}
 	}
 	return i.LoadMessages(msgs)

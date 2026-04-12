@@ -262,11 +262,9 @@ func TestCustomFormatters(t *testing.T) {
 	)
 
 	localizer := bundle.NewLocalizer("en")
-
 	result, err := localizer.Format("Hello, {name, upper}!", Vars{
 		"name": "world",
 	})
-
 	assert.NoError(err)
 	assert.Equal("Hello, WORLD!", result)
 }
@@ -280,11 +278,9 @@ func TestStrictMode(t *testing.T) {
 	)
 
 	localizer := bundle.NewLocalizer("en")
-
 	result, err := localizer.Format("{count, plural, one {# item} other {# items}}", Vars{
 		"count": 1,
 	})
-
 	assert.NoError(err)
 	assert.Equal("1 item", result)
 }
@@ -334,45 +330,11 @@ func TestMessageFormatOptions(t *testing.T) {
 	)
 
 	localizer := bundle.NewLocalizer("en")
-
 	result, err := localizer.Format("Hello, {name}!", Vars{
 		"name": "World",
 	})
-
 	assert.NoError(err)
 	assert.Equal("Hello, World!", result)
-}
-
-func TestGetf(t *testing.T) {
-	assert := assert.New(t)
-	bundle := NewBundle(
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
-	err := bundle.LoadMessages(map[string]map[string]string{
-		"en": {"greeting": "Hello, %s! You have %d items."},
-	})
-	assert.NoError(err)
-
-	loc := bundle.NewLocalizer("en")
-	assert.Equal("Hello, Alice! You have 3 items.",
-		loc.Getf("greeting", "Alice", 3))
-}
-
-func TestGetfMissingKey(t *testing.T) {
-	assert := assert.New(t)
-	bundle := NewBundle(WithDefaultLocale("en"), WithLocales("en"))
-	err := bundle.LoadMessages(map[string]map[string]string{
-		"en": {"greeting": "Hello, %s!"},
-	})
-	assert.NoError(err)
-
-	loc := bundle.NewLocalizer("en")
-	// Getf with an existing key applies Sprintf.
-	assert.Equal("Hello, Alice!", loc.Getf("greeting", "Alice"))
-	// Getf with a missing key: lookup falls through to runtime parse,
-	// then Sprintf is applied to the raw name text.
-	assert.Equal("no_such_key", loc.Getf("no_such_key"))
 }
 
 func TestLocalizeWithoutVars(t *testing.T) {
@@ -482,19 +444,19 @@ func TestLookup(t *testing.T) {
 	r := loc.Lookup("hello")
 	assert.Equal("你好", r.Text)
 	assert.Equal("zh-Hans", r.Locale)
-	assert.True(r.Found)
+	assert.Equal(TranslationSourceDirect, r.Source)
 
 	// Test fallback to default locale
 	r = loc.Lookup("bye")
 	assert.Equal("Goodbye", r.Text)
 	assert.Equal("en", r.Locale)
-	assert.True(r.Found)
+	assert.Equal(TranslationSourceFallback, r.Source)
 
 	// Test missing key
 	r = loc.Lookup("nonexistent")
 	assert.Equal("nonexistent", r.Text)
 	assert.Equal("en", r.Locale)
-	assert.False(r.Found)
+	assert.Equal(TranslationSourceMissing, r.Source)
 }
 
 func TestLookupContext(t *testing.T) {
@@ -514,12 +476,12 @@ func TestLookupContext(t *testing.T) {
 	r := loc.Lookup("Post <verb>")
 	assert.Equal("发表", r.Text)
 	assert.Equal("zh-Hans", r.Locale)
-	assert.True(r.Found)
+	assert.Equal(TranslationSourceDirect, r.Source)
 
 	r = loc.Lookup("Post <noun>")
 	assert.Equal("帖子", r.Text)
 	assert.Equal("zh-Hans", r.Locale)
-	assert.True(r.Found)
+	assert.Equal(TranslationSourceDirect, r.Source)
 }
 
 func TestLookupFallbackChain(t *testing.T) {
@@ -544,13 +506,13 @@ func TestLookupFallbackChain(t *testing.T) {
 	r := loc.Lookup("hello")
 	assert.Equal("こんにちは", r.Text)
 	assert.Equal("ja-JP", r.Locale)
-	assert.True(r.Found)
+	assert.Equal(TranslationSourceDirect, r.Source)
 
 	// Test ja-JP -> zh-Hans fallback
 	r = loc.Lookup("shared_key")
 	assert.Equal("Chinese", r.Text)
 	assert.Equal("zh-Hans", r.Locale)
-	assert.True(r.Found)
+	assert.Equal(TranslationSourceFallback, r.Source)
 }
 
 func TestLookupWithVars(t *testing.T) {
@@ -571,13 +533,13 @@ func TestLookupWithVars(t *testing.T) {
 	r := loc.Lookup("greeting", Vars{"name": "World"})
 	assert.Equal("你好，World！", r.Text)
 	assert.Equal("zh-Hans", r.Locale)
-	assert.True(r.Found)
+	assert.Equal(TranslationSourceDirect, r.Source)
 
 	// Fallback with variables
 	r = loc.Lookup("unknown", Vars{"name": "Test"})
 	assert.Equal("unknown", r.Text)
 	assert.Equal("en", r.Locale)
-	assert.False(r.Found)
+	assert.Equal(TranslationSourceMissing, r.Source)
 }
 
 func TestLookupDetectFallbackVsDirect(t *testing.T) {
@@ -596,15 +558,15 @@ func TestLookupDetectFallbackVsDirect(t *testing.T) {
 
 	// Direct hit
 	r := loc.Lookup("hello")
-	assert.True(r.Found)
-	assert.Equal(loc.Locale(), r.Locale) // same locale = direct hit
+	assert.Equal(TranslationSourceDirect, r.Source)
+	assert.Equal(loc.Locale(), r.Locale)
 
 	// Fallback hit
 	r = loc.Lookup("only_en")
-	assert.True(r.Found)
-	assert.NotEqual(loc.Locale(), r.Locale) // different locale = fallback
+	assert.Equal(TranslationSourceFallback, r.Source)
+	assert.NotEqual(loc.Locale(), r.Locale)
 
 	// Miss
 	r = loc.Lookup("nonexistent")
-	assert.False(r.Found)
+	assert.Equal(TranslationSourceMissing, r.Source)
 }

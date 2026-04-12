@@ -1,19 +1,23 @@
 package i18n
 
+// TranslationSource describes how a lookup result was produced.
+type TranslationSource string
+
+const (
+	TranslationSourceDirect   TranslationSource = "direct"
+	TranslationSourceFallback TranslationSource = "fallback"
+	TranslationSourceMissing  TranslationSource = "missing"
+)
+
 // TranslationResult holds detailed translation lookup information.
-// Fields map directly to Google AIP-193 LocalizedMessage.
 type TranslationResult struct {
 	// Text is the translated message, or the key itself if not found.
-	// Maps to AIP-193 LocalizedMessage.message — always populated.
 	Text string
 
-	// Locale is the BCP 47 locale tag that provided the translation.
-	// Maps to AIP-193 LocalizedMessage.locale — always populated.
-	// On a direct hit, this is the requested locale.
-	// On a fallback hit, this is the fallback locale.
-	// On a miss, this is the default locale.
+	// Locale is the BCP 47 locale tag that produced Text.
 	Locale string
 
-	// Found reports whether the key existed in loaded translations.
-	Found bool
+	// Source reports whether the result came from the requested locale,
+	// the fallback chain, or runtime key fallback.
+	Source TranslationSource
 }

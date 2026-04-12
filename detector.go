@@ -1,16 +1,14 @@
 package i18n
 
-import (
-	"net/http"
+import "net/http"
 
-	"golang.org/x/text/language"
-)
+type DetectorSource string
 
 const (
-	DetectorSourceQuery  = "query"
-	DetectorSourceCookie = "cookie"
-	DetectorSourceHeader = "header"
-	DetectorSourceAccept = "accept-language"
+	DetectorSourceQuery  DetectorSource = "query"
+	DetectorSourceCookie DetectorSource = "cookie"
+	DetectorSourceHeader DetectorSource = "header"
+	DetectorSourceAccept DetectorSource = "accept-language"
 )
 
 // DetectorOption configures a [Detector].
@@ -19,7 +17,7 @@ type DetectorOption func(*Detector)
 // Detector resolves the best locale for an HTTP request.
 type Detector struct {
 	bundle     *I18n
-	priority   []string
+	priority   []DetectorSource
 	queryParam string
 	cookieName string
 	headerName string
@@ -29,7 +27,7 @@ type Detector struct {
 func NewDetector(bundle *I18n, opts ...DetectorOption) *Detector {
 	d := &Detector{
 		bundle:     bundle,
-		priority:   []string{DetectorSourceQuery, DetectorSourceCookie, DetectorSourceHeader, DetectorSourceAccept},
+		priority:   []DetectorSource{DetectorSourceQuery, DetectorSourceCookie, DetectorSourceHeader, DetectorSourceAccept},
 		queryParam: "lang",
 		cookieName: "lang",
 		headerName: "X-Language",
@@ -41,12 +39,23 @@ func NewDetector(bundle *I18n, opts ...DetectorOption) *Detector {
 }
 
 // WithDetectorPriority sets the detector source priority.
-func WithDetectorPriority(priority ...string) DetectorOption {
+func WithDetectorPriority(priority ...DetectorSource) DetectorOption {
 	return func(d *Detector) {
 		if len(priority) == 0 {
 			return
 		}
-		d.priority = append([]string(nil), priority...)
+
+		sanitized := make([]DetectorSource, 0, len(priority))
+		for _, source := range priority {
+			if source.isValid() {
+				sanitized = append(sanitized, source)
+			}
+		}
+		if len(sanitized) == 0 {
+			return
+		}
+
+		d.priority = sanitized
 	}
 }
 
@@ -133,19 +142,18 @@ func (d *Detector) resolveExplicitLocale(locale string) string {
 	if locale == "" {
 		return ""
 	}
-	if matched := d.bundle.matchExactLocale(locale); matched != "" {
-		if _, ok := d.bundle.parsedTranslations[matched]; ok {
-			return matched
-		}
+	matched, ok := d.bundle.resolveLocalizedLocale(locale)
+	if !ok {
 		return ""
 	}
+	return matched
+}
 
-	tag, err := language.Parse(locale)
-	if err != nil || tag == language.Und {
-		return ""
+func (s DetectorSource) isValid() bool {
+	switch s {
+	case DetectorSourceQuery, DetectorSourceCookie, DetectorSourceHeader, DetectorSourceAccept:
+		return true
+	default:
+		return false
 	}
-	if !d.bundle.IsLanguageSupported(tag) {
-		return ""
-	}
-	return d.bundle.resolveLocale(locale)
 }

@@ -15,7 +15,7 @@ func (i *I18n) MatchAvailableLocale(accepts ...string) string {
 	}
 
 	if len(tags) == 0 {
-		return i.languages[0].String()
+		return i.defaultLocale
 	}
 
 	_, idx, conf := i.languageMatcher.Match(tags...)
@@ -23,5 +23,5 @@ func (i *I18n) MatchAvailableLocale(accepts ...string) string {
 		return i.languages[idx].String()
 	}
 
-	return i.languages[0].String()
+	return i.defaultLocale
 }

@@ -117,6 +117,43 @@ func TestDetectorDetectLocale(t *testing.T) {
 	}
 }
 
+func TestDetectorExplicitLocaleFallsBackWhenMatchedLocaleHasNoLoadedTranslations(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello"},
+	}))
+
+	detector := NewDetector(bundle)
+	request := httptestNewRequest("GET", "/?lang=zh-CN")
+
+	assert.Equal(t, "en", detector.DetectLocale(request))
+}
+
+func TestDetectorPriorityIgnoresInvalidSources(t *testing.T) {
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello"},
+		"zh-Hans": {"hello": "你好"},
+	}))
+
+	detector := NewDetector(
+		bundle,
+		WithDetectorPriority(DetectorSource("invalid"), DetectorSourceHeader),
+		WithDetectorHeaderName("X-Locale"),
+	)
+
+	request := httptestNewRequest("GET", "/?lang=en")
+	request.Header.Set("X-Locale", "zh-CN")
+
+	assert.Equal(t, "zh-Hans", detector.DetectLocale(request))
+}
+
 func TestLocalizerFromContext(t *testing.T) {
 	loc := newTestLocalizer()
 

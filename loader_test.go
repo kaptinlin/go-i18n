@@ -108,6 +108,7 @@ func TestMergeTranslationUnmarshalError(t *testing.T) {
 	)
 	err := bundle.LoadFiles("test/zh-Hans.json")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `load translations from "test/zh-Hans.json"`)
 	assert.Contains(t, err.Error(), "unmarshal")
 }
 

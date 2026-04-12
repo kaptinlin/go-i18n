@@ -3,6 +3,7 @@ package i18n
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -37,6 +38,7 @@ type I18n struct {
 	unmarshaler               Unmarshaler
 	languageMatcher           language.Matcher
 	fallbacks                 map[string][]string
+	directTranslations        map[string]map[string]*parsedTranslation
 	parsedTranslations        map[string]map[string]*parsedTranslation
 	runtimeParsedTranslations map[string]*parsedTranslation
 	runtimeTranslationsMu     sync.RWMutex
@@ -65,7 +67,16 @@ func WithUnmarshaler(u Unmarshaler) Option {
 // is missing. The default locale is used as the final fallback.
 func WithFallback(f map[string][]string) Option {
 	return func(i *I18n) {
-		i.fallbacks = f
+		if f == nil {
+			i.fallbacks = nil
+			return
+		}
+
+		fallbacks := make(map[string][]string, len(f))
+		for locale, chain := range f {
+			fallbacks[locale] = slices.Clone(chain)
+		}
+		i.fallbacks = fallbacks
 	}
 }
 
@@ -96,7 +107,7 @@ func WithLocales(locales ...string) Option {
 // WithMessageFormatOptions sets MessageFormat options for the bundle.
 func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
 	return func(i *I18n) {
-		i.mfOptions = opts
+		i.mfOptions = cloneMessageFormatOptions(opts)
 	}
 }
 
@@ -107,7 +118,7 @@ func WithCustomFormatters(formatters map[string]any) Option {
 		if i.mfOptions == nil {
 			i.mfOptions = &mf.MessageFormatOptions{}
 		}
-		i.mfOptions.CustomFormatters = formatters
+		i.mfOptions.CustomFormatters = maps.Clone(formatters)
 	}
 }
 
@@ -129,6 +140,7 @@ func NewBundle(options ...Option) *I18n {
 	i := &I18n{
 		unmarshaler:               func(data []byte, v any) error { return json.Unmarshal(data, v) },
 		fallbacks:                 make(map[string][]string),
+		directTranslations:        make(map[string]map[string]*parsedTranslation),
 		runtimeParsedTranslations: make(map[string]*parsedTranslation),
 		parsedTranslations:        make(map[string]map[string]*parsedTranslation),
 	}
@@ -148,29 +160,31 @@ func NewBundle(options ...Option) *I18n {
 	return i
 }
 
-// SupportedLanguages returns all language tags supported by this bundle.
-func (i *I18n) SupportedLanguages() []language.Tag {
-	return i.languages
+// SupportedLocales returns the configured locale tags for this bundle.
+func (i *I18n) SupportedLocales() []language.Tag {
+	return slices.Clone(i.languages)
 }
 
-// HasTranslation reports whether key exists for locale in the loaded bundle state.
-func (i *I18n) HasTranslation(locale, key string) bool {
-	resolved, ok := i.resolveLoadedLocale(locale)
+// Has reports whether key is defined directly for locale in the loaded bundle
+// state. Fallback-populated keys are not included.
+func (i *I18n) Has(locale, key string) bool {
+	resolved, ok := i.resolveLocaleForTable(locale, i.directTranslations, false)
 	if !ok {
 		return false
 	}
-	translations := i.parsedTranslations[resolved]
+	translations := i.directTranslations[resolved]
 	_, ok = translations[key]
 	return ok
 }
 
-// Keys returns the sorted translation keys for locale in the loaded bundle state.
+// Keys returns the sorted keys defined directly for locale in the loaded
+// bundle state. Fallback-populated keys are not included.
 func (i *I18n) Keys(locale string) []string {
-	resolved, ok := i.resolveLoadedLocale(locale)
+	resolved, ok := i.resolveLocaleForTable(locale, i.directTranslations, false)
 	if !ok {
 		return nil
 	}
-	translations := i.parsedTranslations[resolved]
+	translations := i.directTranslations[resolved]
 	keys := make([]string, 0, len(translations))
 	for key := range translations {
 		keys = append(keys, key)
@@ -179,12 +193,16 @@ func (i *I18n) Keys(locale string) []string {
 	return keys
 }
 
-func (i *I18n) resolveLoadedLocale(locale string) (string, bool) {
+func (i *I18n) resolveLocaleForTable(
+	locale string,
+	translations map[string]map[string]*parsedTranslation,
+	allowDefault bool,
+) (string, bool) {
 	if locale == "" {
 		return "", false
 	}
 	if matched := i.matchExactLocale(locale); matched != "" {
-		_, ok := i.parsedTranslations[matched]
+		_, ok := translations[matched]
 		return matched, ok
 	}
 
@@ -193,9 +211,30 @@ func (i *I18n) resolveLoadedLocale(locale string) (string, bool) {
 		return "", false
 	}
 
-	matched := i.resolveLocale(locale)
-	_, ok := i.parsedTranslations[matched]
-	return matched, ok
+	_, idx, conf := i.languageMatcher.Match(tag)
+	if conf == language.No {
+		if !allowDefault {
+			return "", false
+		}
+		_, ok := translations[i.defaultLocale]
+		return i.defaultLocale, ok
+	}
+
+	matched := i.languages[idx].String()
+	_, ok := translations[matched]
+	if ok {
+		return matched, true
+	}
+	if !allowDefault {
+		return "", false
+	}
+
+	_, ok = translations[i.defaultLocale]
+	return i.defaultLocale, ok
+}
+
+func (i *I18n) resolveLocalizedLocale(locale string) (string, bool) {
+	return i.resolveLocaleForTable(locale, i.parsedTranslations, true)
 }
 
 // ensureDefaultLanguageFirst ensures the default language is the first element
@@ -214,6 +253,16 @@ func (i *I18n) ensureDefaultLanguageFirst() {
 	i.languages = slices.Insert(i.languages, 0, i.defaultLanguage)
 }
 
+func cloneMessageFormatOptions(opts *mf.MessageFormatOptions) *mf.MessageFormatOptions {
+	if opts == nil {
+		return nil
+	}
+
+	cloned := *opts
+	cloned.CustomFormatters = maps.Clone(opts.CustomFormatters)
+	return &cloned
+}
+
 // matchExactLocale returns the string form of the supported locale that
 // exactly matches the given locale, or an empty string if none matches.
 func (i *I18n) matchExactLocale(locale string) string {
@@ -224,25 +273,8 @@ func (i *I18n) matchExactLocale(locale string) string {
 	return ""
 }
 
-func (i *I18n) resolveLocale(locale string) string {
-	if locale == "" {
-		return i.defaultLocale
-	}
-
-	_, idx, conf := i.languageMatcher.Match(language.Make(locale))
-	if conf == language.No {
-		return i.defaultLocale
-	}
-
-	matched := i.languages[idx].String()
-	if _, ok := i.parsedTranslations[matched]; ok {
-		return matched
-	}
-	return i.defaultLocale
-}
-
-// IsLanguageSupported reports whether lang can be matched to a supported locale.
-// Languages not in SupportedLanguages may still match through the language matcher.
+// IsLanguageSupported reports whether lang can be matched to a configured locale.
+// Languages not in SupportedLocales may still match through the language matcher.
 func (i *I18n) IsLanguageSupported(lang language.Tag) bool {
 	_, _, conf := i.languageMatcher.Match(lang)
 	return conf > language.No
@@ -252,11 +284,7 @@ func (i *I18n) IsLanguageSupported(lang language.Tag) bool {
 // locales. If none match, the default locale is used.
 func (i *I18n) NewLocalizer(locales ...string) *Localizer {
 	for _, loc := range locales {
-		matched := i.matchExactLocale(loc)
-		if matched == "" {
-			continue
-		}
-		if _, ok := i.parsedTranslations[matched]; ok {
+		if matched, ok := i.resolveLocalizedLocale(loc); ok {
 			return &Localizer{
 				bundle: i,
 				locale: matched,
@@ -292,12 +320,12 @@ func (i *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, 
 
 	formatter, err := mf.New(base.String(), i.mfOptions)
 	if err != nil {
-		return pt, fmt.Errorf("%w: create formatter: %w", ErrMessageFormatCompilation, err)
+		return pt, fmt.Errorf("%w for locale %q key %q: create formatter: %w", ErrMessageFormatCompilation, locale, name, err)
 	}
 
 	compiled, err := formatter.Compile(text)
 	if err != nil {
-		return pt, fmt.Errorf("%w: %w", ErrMessageFormatCompilation, err)
+		return pt, fmt.Errorf("%w for locale %q key %q: %w", ErrMessageFormatCompilation, locale, name, err)
 	}
 
 	pt.format = compiled

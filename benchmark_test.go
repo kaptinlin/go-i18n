@@ -165,14 +165,6 @@ func BenchmarkNewLocalizer(b *testing.B) {
 	}
 }
 
-// BenchmarkGetf benchmarks sprintf-style formatting.
-func BenchmarkGetf(b *testing.B) {
-	localizer := newTestLocalizer()
-	for b.Loop() {
-		_ = localizer.Getf("Hello, %s!", "World")
-	}
-}
-
 // BenchmarkParallel benchmarks concurrent translation lookups.
 func BenchmarkLocalizerGetParallel(b *testing.B) {
 	localizer := newTestLocalizer()

@@ -37,23 +37,18 @@ func (l *Localizer) GetX(name, context string, data ...Vars) string {
 // Use [Localizer.Get] for the common case where only the text is needed.
 func (l *Localizer) Lookup(name string, data ...Vars) TranslationResult {
 	pt, found := l.resolve(name)
+	source := TranslationSourceMissing
+	if found {
+		source = TranslationSourceFallback
+		if pt.locale == l.locale {
+			source = TranslationSourceDirect
+		}
+	}
 	return TranslationResult{
 		Text:   l.localize(pt, data...),
 		Locale: pt.locale,
-		Found:  found,
+		Source: source,
 	}
-}
-
-// Getf returns the translation for name formatted with fmt.Sprintf.
-// Uses name as the format string if no translation is found.
-//
-// Deprecated: Use [Localizer.Get] with MessageFormat variables, or compose
-// with fmt.Sprintf:
-//
-//	fmt.Sprintf(localizer.Get("greeting"), "Alice")
-func (l *Localizer) Getf(name string, args ...any) string {
-	pt, _ := l.resolve(name)
-	return fmt.Sprintf(l.localize(pt), args...)
 }
 
 // resolve finds the parsedTranslation for name.
@@ -88,8 +83,9 @@ func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 }
 
 // Format compiles and formats a MessageFormat message directly.
-// This bypasses translation lookup and is useful for dynamic messages
-// not stored in translation files.
+// This bypasses translation lookup and recompiles the message on each call,
+// so it is intended for dynamic, non-hot-path messages that are not stored in
+// translation files. Prefer [Localizer.Get] for normal translated content.
 func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 	base, _ := language.MustParse(l.locale).Base()
 

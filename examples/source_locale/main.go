@@ -46,22 +46,22 @@ func main() {
 	fmt.Println("\n=== Detecting Fallback vs Direct Hit ===")
 
 	r = localizer.Lookup("hello", i18n.Vars{"name": "World"})
-	switch {
-	case !r.Found:
+	switch r.Source {
+	case i18n.TranslationSourceMissing:
 		fmt.Printf("  %q: NOT FOUND\n", "hello")
-	case r.Locale != localizer.Locale():
+	case i18n.TranslationSourceFallback:
 		fmt.Printf("  %q: fallback from %s\n", "hello", r.Locale)
-	default:
+	case i18n.TranslationSourceDirect:
 		fmt.Printf("  %q: direct hit in %s\n", "hello", r.Locale)
 	}
 
 	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
-	switch {
-	case !r.Found:
+	switch r.Source {
+	case i18n.TranslationSourceMissing:
 		fmt.Printf("  %q: NOT FOUND\n", "goodbye")
-	case r.Locale != localizer.Locale():
+	case i18n.TranslationSourceFallback:
 		fmt.Printf("  %q: fallback from %s\n", "goodbye", r.Locale)
-	default:
+	case i18n.TranslationSourceDirect:
 		fmt.Printf("  %q: direct hit in %s\n", "goodbye", r.Locale)
 	}
 
@@ -90,6 +90,6 @@ func printResult(key string, r i18n.TranslationResult) {
 	fmt.Printf("Key: %q\n", key)
 	fmt.Printf("  Text:   %q\n", r.Text)
 	fmt.Printf("  Locale: %q\n", r.Locale)
-	fmt.Printf("  Found:  %v\n", r.Found)
+	fmt.Printf("  Source: %q\n", r.Source)
 	fmt.Println()
 }
