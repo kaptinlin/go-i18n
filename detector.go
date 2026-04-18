@@ -2,8 +2,10 @@ package i18n
 
 import "net/http"
 
+// DetectorSource identifies a request input that can supply a locale.
 type DetectorSource string
 
+// Locale detector sources.
 const (
 	DetectorSourceQuery  DetectorSource = "query"
 	DetectorSourceCookie DetectorSource = "cookie"

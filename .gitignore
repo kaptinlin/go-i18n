@@ -37,6 +37,9 @@ build/
 # Mac OS files
 **/.DS_Store
 
+# Claude Code
+.claude/
+
 # .ralphy
 .ralphy/deferred.json
 .ralphy/*.txt
@@ -59,3 +62,18 @@ ANALYSIS.md
 
 # Meeting records
 .meetings/
+
+# Additional scratch/planning patterns
+improve*.md
+refactor*.md
+plan*.md
+.plan/*.md
+.plans/*
+TODO*.md
+reports/*
+
+# Additional tooling patterns
+.vscode/
+
+# Additional .ralphy state
+.ralphy/*.json

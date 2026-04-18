@@ -353,7 +353,8 @@ func (i *I18n) getRuntimeParsedTranslation(name string) *parsedTranslation {
 	i.runtimeTranslationsMu.Lock()
 	defer i.runtimeTranslationsMu.Unlock()
 
-	if pt = i.runtimeParsedTranslations[name]; pt != nil {
+	pt = i.runtimeParsedTranslations[name]
+	if pt != nil {
 		return pt
 	}
 

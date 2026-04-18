@@ -38,16 +38,12 @@ func (i *I18n) LoadMessages(msgs map[string]map[string]string) error {
 
 // LoadFiles loads translations from the given file paths.
 func (i *I18n) LoadFiles(files ...string) error {
-	return i.loadFiles(files, func(name string) ([]byte, error) {
-		return os.ReadFile(name) //nolint:gosec
-	})
+	return i.loadFiles(files, os.ReadFile)
 }
 
 // LoadGlob loads translations from files matching the given glob patterns.
 func (i *I18n) LoadGlob(patterns ...string) error {
-	files, err := collectGlobs(patterns, func(p string) ([]string, error) {
-		return filepath.Glob(p)
-	})
+	files, err := collectGlobs(patterns, filepath.Glob)
 	if err != nil {
 		return err
 	}

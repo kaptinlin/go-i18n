@@ -1,3 +1,4 @@
+// Package middleware provides optional HTTP integration for go-i18n.
 package middleware
 
 import (

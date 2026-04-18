@@ -3,6 +3,7 @@ package i18n
 // TranslationSource describes how a lookup result was produced.
 type TranslationSource string
 
+// Translation result sources.
 const (
 	TranslationSourceDirect   TranslationSource = "direct"
 	TranslationSourceFallback TranslationSource = "fallback"

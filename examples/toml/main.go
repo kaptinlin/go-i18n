@@ -4,8 +4,9 @@ import (
 	"embed"
 	"fmt"
 
-	"github.com/kaptinlin/go-i18n"
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/kaptinlin/go-i18n"
 )
 
 //go:embed locales/*

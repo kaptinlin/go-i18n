@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/goccy/go-yaml"
+
 	"github.com/kaptinlin/go-i18n"
 )
 

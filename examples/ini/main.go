@@ -4,8 +4,9 @@ import (
 	"embed"
 	"fmt"
 
-	"github.com/kaptinlin/go-i18n"
 	"gopkg.in/ini.v1"
+
+	"github.com/kaptinlin/go-i18n"
 )
 
 //go:embed locales/*

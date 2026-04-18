@@ -5,9 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	i18n "github.com/kaptinlin/go-i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	i18n "github.com/kaptinlin/go-i18n"
 )
 
 func TestHTTPMiddleware(t *testing.T) {
