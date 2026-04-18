@@ -425,6 +425,22 @@ func TestNewLocalizerMatchedButNoTranslations(t *testing.T) {
 	assert.Equal(t, "en", loc.Locale())
 }
 
+func TestNewLocalizerMatchedLocaleWithoutLoadedTranslationsFallsToDefault(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello"},
+	}))
+
+	loc := bundle.NewLocalizer("zh-CN")
+	assert.Equal(t, "en", loc.Locale())
+	assert.Equal(t, "Hello", loc.Get("hello"))
+}
+
 func TestNewLocalizerNoMatchFallsToDefault(t *testing.T) {
 	t.Parallel()
 

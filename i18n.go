@@ -214,29 +214,24 @@ func (i *I18n) resolveLocaleForTable(
 	}
 
 	tag, err := language.Parse(locale)
-	if err != nil || tag == language.Und || !i.IsLanguageSupported(tag) {
+	if err != nil || tag == language.Und {
 		return "", false
 	}
 
 	_, idx, conf := i.languageMatcher.Match(tag)
 	if conf == language.No {
-		if !allowDefault {
-			return "", false
-		}
-		_, ok := translations[i.defaultLocale]
-		return i.defaultLocale, ok
+		return "", false
 	}
 
 	matched := i.languages[idx].String()
-	_, ok := translations[matched]
-	if ok {
+	if _, ok := translations[matched]; ok {
 		return matched, true
 	}
 	if !allowDefault {
 		return "", false
 	}
 
-	_, ok = translations[i.defaultLocale]
+	_, ok := translations[i.defaultLocale]
 	return i.defaultLocale, ok
 }
 
