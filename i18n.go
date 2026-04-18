@@ -118,25 +118,24 @@ func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
 	}
 }
 
+func (i *I18n) ensureMessageFormatOptions() *mf.MessageFormatOptions {
+	if i.mfOptions == nil {
+		i.mfOptions = &mf.MessageFormatOptions{}
+	}
+	return i.mfOptions
+}
+
 // WithCustomFormatters adds custom formatters for MessageFormat.
-// Creates a new options struct if none exists.
 func WithCustomFormatters(formatters map[string]any) Option {
 	return func(i *I18n) {
-		if i.mfOptions == nil {
-			i.mfOptions = &mf.MessageFormatOptions{}
-		}
-		i.mfOptions.CustomFormatters = maps.Clone(formatters)
+		i.ensureMessageFormatOptions().CustomFormatters = maps.Clone(formatters)
 	}
 }
 
 // WithStrictMode enables strict parsing mode for MessageFormat.
-// Creates a new options struct if none exists.
 func WithStrictMode(strict bool) Option {
 	return func(i *I18n) {
-		if i.mfOptions == nil {
-			i.mfOptions = &mf.MessageFormatOptions{}
-		}
-		i.mfOptions.Strict = strict
+		i.ensureMessageFormatOptions().Strict = strict
 	}
 }
 

@@ -251,6 +251,49 @@ func TestWithCustomFormattersClonesInput(t *testing.T) {
 	}
 }
 
+func TestMessageFormatOptionHelpersCompose(t *testing.T) {
+	t.Parallel()
+
+	upperFormatter := func(value any, locale string, arg *string) any {
+		return value
+	}
+
+	tests := []struct {
+		name    string
+		options []Option
+	}{
+		{
+			name: "custom formatters before strict mode",
+			options: []Option{
+				WithDefaultLocale("en"),
+				WithCustomFormatters(map[string]any{"upper": upperFormatter}),
+				WithStrictMode(true),
+			},
+		},
+		{
+			name: "strict mode before custom formatters",
+			options: []Option{
+				WithDefaultLocale("en"),
+				WithStrictMode(true),
+				WithCustomFormatters(map[string]any{"upper": upperFormatter}),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			bundle := NewBundle(tt.options...)
+			if assert.NotNil(t, bundle.mfOptions) {
+				assert.True(t, bundle.mfOptions.Strict)
+				_, ok := bundle.mfOptions.CustomFormatters["upper"]
+				assert.True(t, ok)
+			}
+		})
+	}
+}
+
 func TestHas(t *testing.T) {
 	t.Parallel()
 
