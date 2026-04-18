@@ -56,6 +56,14 @@ func TestRepositoryConfig(t *testing.T) {
 				"stage_fixed: true",
 			},
 		},
+		{
+			name: "Taskfile runs markdownlint through npx",
+			path: "Taskfile.yml",
+			want: []string{
+				"markdownlint:",
+				"npx --yes markdownlint-cli2 \"**/*.md\"",
+			},
+		},
 	}
 
 	for _, tc := range tests {

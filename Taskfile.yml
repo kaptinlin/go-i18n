@@ -157,7 +157,7 @@ tasks:
   markdownlint:
     desc: Run markdownlint
     cmds:
-      - markdownlint-cli2 "**/*.md"
+      - npx --yes markdownlint-cli2 "**/*.md"
 
   yamllint:
     desc: Run yamllint
