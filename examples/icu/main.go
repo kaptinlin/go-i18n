@@ -43,77 +43,48 @@ func main() {
 
 	localizer := bundle.NewLocalizer("en")
 
-	// Output: Message
 	fmt.Println(localizer.Get("message_basic", i18n.Vars{
 		"count": 1,
 	}))
-
-	// Output: Messages
 	fmt.Println(localizer.Get("message_basic", i18n.Vars{
 		"count": 2,
 	}))
-
-	// Output: No messages
 	fmt.Println(localizer.Get("message_with_number", i18n.Vars{
 		"count": 0,
 	}))
-
-	// Output: 1 message
 	fmt.Println(localizer.Get("message_with_number", i18n.Vars{
 		"count": 1,
 	}))
-
-	// Output: 2 messages
 	fmt.Println(localizer.Get("message_with_number", i18n.Vars{
 		"count": 2,
 	}))
-
-	// Output: No messages
 	fmt.Println(localizer.Get("message_with_multiline", i18n.Vars{
 		"count": 0,
 	}))
-
-	// Output: 1 message
 	fmt.Println(localizer.Get("message_with_multiline", i18n.Vars{
 		"count": 1,
 	}))
-
-	// Output: 2 messages
 	fmt.Println(localizer.Get("message_with_multiline", i18n.Vars{
 		"count": 2,
 	}))
-
-	// Output: He replied to your message
 	fmt.Println(localizer.Get("message_with_select", i18n.Vars{
 		"gender": "male",
 	}))
-
-	// Output: She replied to your message
 	fmt.Println(localizer.Get("message_with_select", i18n.Vars{
 		"gender": "female",
 	}))
-
-	// Output: They replied to your message
 	fmt.Println(localizer.Get("message_with_select", i18n.Vars{
 		"gender": "other",
 	}))
-
-	// Output: 1st message
 	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
 		"floor": 1,
 	}))
-
-	// Output: 2nd message
 	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
 		"floor": 2,
 	}))
-
-	// Output: 3rd message
 	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
 		"floor": 3,
 	}))
-
-	// Output: 4th message
 	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
 		"floor": 4,
 	}))

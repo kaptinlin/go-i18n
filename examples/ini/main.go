@@ -23,11 +23,7 @@ func unmarshalINI(data []byte, v any) error {
 
 	m := *v.(*map[string]string)
 
-	// Includes the ini.DefaultSection which has the root keys too.
-	// We don't have to iterate to each section to find the subsection,
-	// the Sections() returns all sections, sub-sections are separated by dot '.'
-	// and we match the dot with a section on the translate function, so we just save the values as they are,
-	// so we don't have to do section lookup on every translate call.
+	// Flatten section prefixes once so lookups can use the final dotted keys directly.
 	for _, section := range f.Sections() {
 		keyPrefix := ""
 		if name := section.Name(); name != ini.DefaultSection {
@@ -56,35 +52,22 @@ func main() {
 
 	localizer := bundle.NewLocalizer("en")
 
-	// Output: Hello, world
 	fmt.Println(localizer.Get("hello_world"))
-
-	// Output: Hello, John
 	fmt.Println(localizer.Get("hello_name", i18n.Vars{
 		"name": "John",
 	}))
-
-	// Output: Message
 	fmt.Println(localizer.Get("message", i18n.Vars{
 		"count": 1,
 	}))
-
-	// Output: Messages
 	fmt.Println(localizer.Get("message", i18n.Vars{
 		"count": 2,
 	}))
-
-	// Output: No messages
 	fmt.Println(localizer.Get("message.with_number", i18n.Vars{
 		"count": 0,
 	}))
-
-	// Output: 1 message
 	fmt.Println(localizer.Get("message.with_number", i18n.Vars{
 		"count": 1,
 	}))
-
-	// Output: 2 messages
 	fmt.Println(localizer.Get("message.with_number", i18n.Vars{
 		"count": 2,
 	}))

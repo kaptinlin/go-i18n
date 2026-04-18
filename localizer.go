@@ -50,8 +50,6 @@ func (l *Localizer) Lookup(name string, data ...Vars) TranslationResult {
 	}
 }
 
-// resolve finds the parsedTranslation for name.
-// Returns (pt, true) if found in loaded translations, (pt, false) for runtime fallback.
 func (l *Localizer) resolve(name string) (*parsedTranslation, bool) {
 	if pt, ok := l.bundle.parsedTranslations[l.locale][name]; ok {
 		return pt, true
@@ -59,9 +57,6 @@ func (l *Localizer) resolve(name string) (*parsedTranslation, bool) {
 	return l.bundle.getRuntimeParsedTranslation(name), false
 }
 
-// localize formats a parsed translation with the given variables.
-// Without variables the raw text is returned. With variables and a
-// compiled MessageFormat function, the formatted result is returned.
 func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 	if pt.format == nil {
 		return pt.text
@@ -115,9 +110,6 @@ func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 	return str, nil
 }
 
-// varsToParams converts optional Vars arguments to a params value
-// suitable for a compiled MessageFormat function. Returns nil when
-// no variables are provided. Only the first Vars argument is used.
 func varsToParams(data []Vars) any {
 	if len(data) == 0 {
 		return nil

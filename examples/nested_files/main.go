@@ -23,10 +23,7 @@ func main() {
 
 	localizer := bundle.NewLocalizer("zh-Hans")
 
-	// Output: 你好，世界
 	fmt.Println(localizer.Get("hello_world"))
-
-	// Output: 你好, John
 	fmt.Println(localizer.Get("message.hi", i18n.Vars{
 		"name": "John",
 	}))

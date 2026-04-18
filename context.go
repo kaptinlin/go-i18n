@@ -4,7 +4,7 @@ import "context"
 
 type localizerContextKey struct{}
 
-// ContextWithLocalizer stores l in ctx.
+// ContextWithLocalizer returns a copy of ctx that carries l.
 func ContextWithLocalizer(ctx context.Context, l *Localizer) context.Context {
 	return context.WithValue(ctx, localizerContextKey{}, l)
 }

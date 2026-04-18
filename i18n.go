@@ -14,7 +14,6 @@ import (
 	"golang.org/x/text/language"
 )
 
-// Errors related to translation loading and compilation.
 var (
 	// ErrMessageFormatCompilation indicates that MessageFormat template compilation failed.
 	// The translation text is returned as-is without formatting capabilities.

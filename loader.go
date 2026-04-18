@@ -63,8 +63,6 @@ func (i *I18n) LoadFS(fsys fs.FS, patterns ...string) error {
 	})
 }
 
-// loadFiles reads each file using readFn, unmarshals the contents,
-// and loads the resulting translations into the bundle.
 func (i *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) error {
 	msgs := make(map[string]map[string]string, len(files))
 	for _, f := range files {
@@ -79,9 +77,6 @@ func (i *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) er
 	return i.LoadMessages(msgs)
 }
 
-// mergeTranslation unmarshals raw bytes from file and merges the
-// resulting key-value pairs into msgs, keyed by the locale derived
-// from the file name.
 func (i *I18n) mergeTranslation(
 	msgs map[string]map[string]string, file string, raw []byte,
 ) error {
@@ -97,8 +92,6 @@ func (i *I18n) mergeTranslation(
 	return nil
 }
 
-// collectGlobs expands each pattern using globFn, deduplicates the
-// results, and returns them in sorted order.
 func collectGlobs(
 	patterns []string, globFn func(string) ([]string, error),
 ) ([]string, error) {

@@ -30,14 +30,9 @@ func main() {
 
 	localizer := bundle.NewLocalizer("zh-Hans")
 
-	// Output: 你好，世界
 	fmt.Println(localizer.Get("Hello world"))
-
-	// Output: 你好, John
 	fmt.Println(localizer.Get("Hello, {name}", i18n.Vars{
 		"name": "John",
 	}))
-
-	// Output: 你好, Alice
 	fmt.Println(fmt.Sprintf(localizer.Get("Hello, %s"), "Alice"))
 }

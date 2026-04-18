@@ -5,11 +5,14 @@ import "net/http"
 // DetectorSource identifies a request input that can supply a locale.
 type DetectorSource string
 
-// Locale detector sources.
 const (
-	DetectorSourceQuery  DetectorSource = "query"
+	// DetectorSourceQuery reads the locale from the request query string.
+	DetectorSourceQuery DetectorSource = "query"
+	// DetectorSourceCookie reads the locale from a request cookie.
 	DetectorSourceCookie DetectorSource = "cookie"
+	// DetectorSourceHeader reads the locale from a request header.
 	DetectorSourceHeader DetectorSource = "header"
+	// DetectorSourceAccept reads the locale from the Accept-Language header.
 	DetectorSourceAccept DetectorSource = "accept-language"
 )
 
