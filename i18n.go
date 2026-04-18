@@ -263,6 +263,15 @@ func cloneMessageFormatOptions(opts *mf.MessageFormatOptions) *mf.MessageFormatO
 	return &cloned
 }
 
+func messageFormatBase(locale string) (string, error) {
+	tag, err := language.Parse(locale)
+	if err != nil {
+		return "", fmt.Errorf("parse locale %q: %w", locale, err)
+	}
+	base, _ := tag.Base()
+	return base.String(), nil
+}
+
 // matchExactLocale returns the string form of the supported locale that
 // exactly matches the given locale, or an empty string if none matches.
 func (i *I18n) matchExactLocale(locale string) string {
@@ -316,9 +325,12 @@ func (i *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, 
 		text:   text,
 	}
 
-	base, _ := language.MustParse(locale).Base()
+	base, err := messageFormatBase(locale)
+	if err != nil {
+		return pt, fmt.Errorf("%w for locale %q key %q: %w", ErrMessageFormatCompilation, locale, name, err)
+	}
 
-	formatter, err := mf.New(base.String(), i.mfOptions)
+	formatter, err := mf.New(base, i.mfOptions)
 	if err != nil {
 		return pt, fmt.Errorf("%w for locale %q key %q: create formatter: %w", ErrMessageFormatCompilation, locale, name, err)
 	}

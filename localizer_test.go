@@ -373,6 +373,16 @@ func TestFormatCompileError(t *testing.T) {
 	assert.Error(err)
 }
 
+func TestFormatInvalidLocalizerLocaleReturnsError(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+	loc := &Localizer{bundle: bundle, locale: "???invalid???"}
+
+	_, err := loc.Format("Hello, world!")
+	assert.Error(err)
+	assert.ErrorContains(err, `parse locale "???invalid???"`)
+}
+
 func TestGetRuntimeParsedTranslationCache(t *testing.T) {
 	assert := assert.New(t)
 	bundle := NewBundle(

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	mf "github.com/kaptinlin/messageformat-go/v1"
-	"golang.org/x/text/language"
 )
 
 // Localizer provides translation methods for a specific locale. Create one
@@ -87,9 +86,12 @@ func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 // so it is intended for dynamic, non-hot-path messages that are not stored in
 // translation files. Prefer [Localizer.Get] for normal translated content.
 func (l *Localizer) Format(message string, data ...Vars) (string, error) {
-	base, _ := language.MustParse(l.locale).Base()
+	base, err := messageFormatBase(l.locale)
+	if err != nil {
+		return "", err
+	}
 
-	formatter, err := mf.New(base.String(), l.bundle.mfOptions)
+	formatter, err := mf.New(base, l.bundle.mfOptions)
 	if err != nil {
 		return "", fmt.Errorf("create formatter: %w", err)
 	}

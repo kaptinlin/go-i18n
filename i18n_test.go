@@ -452,6 +452,36 @@ func TestParseTranslationComplexMessageFormat(t *testing.T) {
 	assert.NotNil(pt.format)
 }
 
+func TestParseTranslationInvalidLocale(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(WithDefaultLocale("en"))
+
+	pt, err := bundle.parseTranslation("???invalid???", "test_key", "Hello")
+	assert.ErrorIs(err, ErrMessageFormatCompilation)
+	assert.ErrorContains(err, `locale "???invalid???"`)
+	assert.ErrorContains(err, `parse locale "???invalid???"`)
+	assert.NotNil(pt)
+	assert.Equal("Hello", pt.text)
+	assert.Nil(pt.format)
+}
+
+func TestLookupInvalidRuntimeLocaleFallsBackToRawText(t *testing.T) {
+	assert := assert.New(t)
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	assert.NoError(bundle.LoadMessages(map[string]map[string]string{
+		"en": {"valid": "Hello"},
+	}))
+
+	loc := &Localizer{bundle: bundle, locale: "???invalid???"}
+	r := loc.Lookup("{invalid syntax")
+	assert.Equal("{invalid syntax", r.Text)
+	assert.Equal("en", r.Locale)
+	assert.Equal(TranslationSourceMissing, r.Source)
+}
+
 func TestLookupInvalidMessageFormat(t *testing.T) {
 	assert := assert.New(t)
 	bundle := NewBundle(
