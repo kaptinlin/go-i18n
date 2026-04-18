@@ -107,7 +107,14 @@ func WithLocales(locales ...string) Option {
 // WithMessageFormatOptions sets MessageFormat options for the bundle.
 func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
 	return func(i *I18n) {
-		i.mfOptions = cloneMessageFormatOptions(opts)
+		if opts == nil {
+			i.mfOptions = nil
+			return
+		}
+
+		cloned := *opts
+		cloned.CustomFormatters = maps.Clone(opts.CustomFormatters)
+		i.mfOptions = &cloned
 	}
 }
 
@@ -251,16 +258,6 @@ func (i *I18n) ensureDefaultLanguageFirst() {
 		i.languages = slices.Delete(i.languages, idx, idx+1)
 	}
 	i.languages = slices.Insert(i.languages, 0, i.defaultLanguage)
-}
-
-func cloneMessageFormatOptions(opts *mf.MessageFormatOptions) *mf.MessageFormatOptions {
-	if opts == nil {
-		return nil
-	}
-
-	cloned := *opts
-	cloned.CustomFormatters = maps.Clone(opts.CustomFormatters)
-	return &cloned
 }
 
 func messageFormatBase(locale string) (string, error) {

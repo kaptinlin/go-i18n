@@ -184,6 +184,12 @@ func TestWithMessageFormatOptionsClonesInput(t *testing.T) {
 	}
 }
 
+func TestWithMessageFormatOptionsNil(t *testing.T) {
+	bundle := NewBundle(WithDefaultLocale("en"), WithMessageFormatOptions(nil))
+
+	assert.Nil(t, bundle.mfOptions)
+}
+
 func TestWithCustomFormattersClonesInput(t *testing.T) {
 	formatters := map[string]any{
 		"upper": func(value any, locale string, arg *string) any {
