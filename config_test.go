@@ -48,12 +48,11 @@ func TestRepositoryConfig(t *testing.T) {
 			want: []string{"2.11.4"},
 		},
 		{
-			name: "lefthook excludes research and specs markdown",
+			name: "lefthook excludes research markdown but lints specs",
 			path: "lefthook.yml",
 			want: []string{
 				"exclude:",
 				".research/**/*.md",
-				"SPECS/**/*.md",
 				"stage_fixed: true",
 			},
 		},
@@ -68,6 +67,10 @@ func TestRepositoryConfig(t *testing.T) {
 				if !strings.Contains(content, want) {
 					t.Fatalf("%s does not contain %q", tc.path, want)
 				}
+			}
+
+			if tc.path == "lefthook.yml" && strings.Contains(content, "SPECS/**/*.md") {
+				t.Fatalf("%s should lint SPECS markdown", tc.path)
 			}
 		})
 	}
