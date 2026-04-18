@@ -12,6 +12,8 @@ import (
 )
 
 func TestHTTPMiddleware(t *testing.T) {
+	t.Parallel()
+
 	bundle := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
@@ -36,6 +38,8 @@ func TestHTTPMiddleware(t *testing.T) {
 }
 
 func TestHTTPMiddlewareWithCustomDetector(t *testing.T) {
+	t.Parallel()
+
 	bundle := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
@@ -62,6 +66,8 @@ func TestHTTPMiddlewareWithCustomDetector(t *testing.T) {
 }
 
 func TestHTTPMiddlewareWithNilDetectorFallsBackToDefault(t *testing.T) {
+	t.Parallel()
+
 	bundle := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans", "ja-JP"),

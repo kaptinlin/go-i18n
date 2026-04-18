@@ -8,6 +8,7 @@ import (
 
 	mf "github.com/kaptinlin/messageformat-go/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testTranslations = map[string]map[string]string{
@@ -68,6 +69,8 @@ func newTestLocalizer() *Localizer {
 }
 
 func TestLocalizer(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -75,6 +78,8 @@ func TestLocalizer(t *testing.T) {
 }
 
 func TestTokenString(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -83,6 +88,8 @@ func TestTokenString(t *testing.T) {
 }
 
 func TestTokenVars(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -92,6 +99,8 @@ func TestTokenVars(t *testing.T) {
 }
 
 func TestTokenPlural(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -107,6 +116,8 @@ func TestTokenPlural(t *testing.T) {
 }
 
 func TestTextString(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -114,6 +125,8 @@ func TestTextString(t *testing.T) {
 }
 
 func TestTextStringRaw(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -121,6 +134,8 @@ func TestTextStringRaw(t *testing.T) {
 }
 
 func TestTextVars(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -130,6 +145,8 @@ func TestTextVars(t *testing.T) {
 }
 
 func TestTextVarsRaw(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -139,6 +156,8 @@ func TestTextVarsRaw(t *testing.T) {
 }
 
 func TestTextPlural(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -154,6 +173,8 @@ func TestTextPlural(t *testing.T) {
 }
 
 func TestTextStringContext(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -162,6 +183,8 @@ func TestTextStringContext(t *testing.T) {
 }
 
 func TestTextPluralContext(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	localizer := newTestLocalizer()
 
@@ -187,6 +210,8 @@ func TestTextPluralContext(t *testing.T) {
 }
 
 func TestTextFallback(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("zh-Hans"),
@@ -230,6 +255,8 @@ func TestTextFallback(t *testing.T) {
 }
 
 func TestTextFallbackResursive(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -248,6 +275,8 @@ func TestTextFallbackResursive(t *testing.T) {
 }
 
 func TestCustomFormatters(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	upperFormatter := func(value any, locale string, arg *string) any {
@@ -270,6 +299,8 @@ func TestCustomFormatters(t *testing.T) {
 }
 
 func TestStrictMode(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	bundle := NewBundle(
@@ -286,6 +317,8 @@ func TestStrictMode(t *testing.T) {
 }
 
 func TestFormatMethod(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	bundle := NewBundle(WithDefaultLocale("en"))
@@ -317,6 +350,8 @@ func TestFormatMethod(t *testing.T) {
 }
 
 func TestMessageFormatOptions(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	options := &mf.MessageFormatOptions{
@@ -338,6 +373,8 @@ func TestMessageFormatOptions(t *testing.T) {
 }
 
 func TestLocalizeWithoutVars(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -354,6 +391,8 @@ func TestLocalizeWithoutVars(t *testing.T) {
 }
 
 func TestFormatNoVars(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(WithDefaultLocale("en"))
 	loc := bundle.NewLocalizer("en")
@@ -364,6 +403,8 @@ func TestFormatNoVars(t *testing.T) {
 }
 
 func TestFormatCompileError(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(WithDefaultLocale("en"))
 	loc := bundle.NewLocalizer("en")
@@ -374,6 +415,8 @@ func TestFormatCompileError(t *testing.T) {
 }
 
 func TestFormatInvalidLocalizerLocaleReturnsError(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(WithDefaultLocale("en"))
 	loc := &Localizer{bundle: bundle, locale: "???invalid???"}
@@ -383,7 +426,41 @@ func TestFormatInvalidLocalizerLocaleReturnsError(t *testing.T) {
 	assert.ErrorContains(err, `parse locale "???invalid???"`)
 }
 
+func TestFormatStringerFallbackForNonStringResult(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithCustomFormatters(map[string]any{
+			"countWords": func(value any, locale string, arg *string) any {
+				return []string{"one", "two"}
+			},
+		}),
+	)
+	loc := bundle.NewLocalizer("en")
+
+	result, err := loc.Format("{name, countWords}", Vars{"name": "ignored"})
+	require.NoError(t, err)
+	assert.Equal(t, "[one two]", result)
+}
+
+func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(WithDefaultLocale("en"))
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {
+			"items": "{count, plural, =0 {no items} one {# item} other {# items}}",
+		},
+	}))
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "{count, plural, =0 {no items} one {# item} other {# items}}", loc.Get("items", Vars{"count": "oops"}))
+}
+
 func TestGetRuntimeParsedTranslationCache(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -404,6 +481,8 @@ func TestGetRuntimeParsedTranslationCache(t *testing.T) {
 }
 
 func TestGetRuntimeParsedTranslationCacheConcurrent(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -437,6 +516,8 @@ func TestGetRuntimeParsedTranslationCacheConcurrent(t *testing.T) {
 }
 
 func TestLookup(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -470,6 +551,8 @@ func TestLookup(t *testing.T) {
 }
 
 func TestLookupContext(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -495,6 +578,8 @@ func TestLookupContext(t *testing.T) {
 }
 
 func TestLookupFallbackChain(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -526,6 +611,8 @@ func TestLookupFallbackChain(t *testing.T) {
 }
 
 func TestLookupWithVars(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -553,6 +640,8 @@ func TestLookupWithVars(t *testing.T) {
 }
 
 func TestLookupDetectFallbackVsDirect(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),

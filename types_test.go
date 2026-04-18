@@ -17,6 +17,8 @@ func ExampleVars() {
 }
 
 func TestVarsMapConversion(t *testing.T) {
+	t.Parallel()
+
 	v := Vars{"name": "Alice", "count": 3}
 	// Vars should be directly convertible to map[string]any.
 	m := map[string]any(v)
@@ -25,6 +27,8 @@ func TestVarsMapConversion(t *testing.T) {
 }
 
 func TestVarsNil(t *testing.T) {
+	t.Parallel()
+
 	var v Vars
 	assert.Nil(t, v)
 	// A nil Vars should convert to a nil map[string]any.
@@ -33,12 +37,16 @@ func TestVarsNil(t *testing.T) {
 }
 
 func TestVarsEmpty(t *testing.T) {
+	t.Parallel()
+
 	v := Vars{}
 	assert.NotNil(t, v)
 	assert.Empty(t, v)
 }
 
 func TestVarsMixedValueTypes(t *testing.T) {
+	t.Parallel()
+
 	v := Vars{
 		"string": "hello",
 		"int":    42,
@@ -62,21 +70,26 @@ func TestVarsMixedValueTypes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, v[tt.key])
 		})
 	}
 }
 
 func TestVarsKeyLookup(t *testing.T) {
+	t.Parallel()
+
 	v := Vars{"exists": "value"}
 
 	t.Run("exists", func(t *testing.T) {
+		t.Parallel()
 		val, ok := v["exists"]
 		assert.True(t, ok)
 		assert.Equal(t, "value", val)
 	})
 
 	t.Run("missing", func(t *testing.T) {
+		t.Parallel()
 		val, ok := v["missing"]
 		assert.False(t, ok)
 		assert.Nil(t, val)

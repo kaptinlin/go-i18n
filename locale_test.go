@@ -8,6 +8,8 @@ import (
 )
 
 func TestMatchAvailableLocale(t *testing.T) {
+	t.Parallel()
+
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
@@ -78,6 +80,7 @@ func TestMatchAvailableLocale(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			locale := bundle.MatchAvailableLocale(tt.accepts...)
 			loc := bundle.NewLocalizer(locale)
 

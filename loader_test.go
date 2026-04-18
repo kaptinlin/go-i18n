@@ -9,6 +9,8 @@ import (
 )
 
 func TestLoadFiles(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	bundle := NewBundle(
@@ -24,6 +26,8 @@ func TestLoadFiles(t *testing.T) {
 }
 
 func TestLoadGlob(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	bundle := NewBundle(
@@ -39,6 +43,8 @@ func TestLoadGlob(t *testing.T) {
 }
 
 func TestLoadFS(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	bundle := NewBundle(
@@ -54,6 +60,8 @@ func TestLoadFS(t *testing.T) {
 }
 
 func TestLoadFilesReadError(t *testing.T) {
+	t.Parallel()
+
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en"),
@@ -64,6 +72,8 @@ func TestLoadFilesReadError(t *testing.T) {
 }
 
 func TestLoadGlobInvalidPattern(t *testing.T) {
+	t.Parallel()
+
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en"),
@@ -75,6 +85,8 @@ func TestLoadGlobInvalidPattern(t *testing.T) {
 }
 
 func TestLoadFSReadError(t *testing.T) {
+	t.Parallel()
+
 	// Use an empty FS so the file doesn't exist.
 	fsys := fstest.MapFS{}
 	bundle := NewBundle(
@@ -87,6 +99,8 @@ func TestLoadFSReadError(t *testing.T) {
 }
 
 func TestLoadFSInvalidGlob(t *testing.T) {
+	t.Parallel()
+
 	fsys := fstest.MapFS{}
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -98,6 +112,8 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 }
 
 func TestMergeTranslationUnmarshalError(t *testing.T) {
+	t.Parallel()
+
 	badUnmarshaler := func([]byte, any) error {
 		return errors.New("unmarshal failed")
 	}
@@ -113,6 +129,8 @@ func TestMergeTranslationUnmarshalError(t *testing.T) {
 }
 
 func TestLoadMessagesSkipsUnmatchedLocale(t *testing.T) {
+	t.Parallel()
+
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en"),

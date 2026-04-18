@@ -10,6 +10,8 @@ import (
 )
 
 func TestDetectorDetectLocale(t *testing.T) {
+	t.Parallel()
+
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
@@ -26,6 +28,38 @@ func TestDetectorDetectLocale(t *testing.T) {
 		request  *http.Request
 		want     string
 	}{
+		{
+			name:     "custom cookie name is used",
+			detector: NewDetector(bundle, WithDetectorCookieName("locale")),
+			request: func() *http.Request {
+				r := httptestNewRequest("GET", "/")
+				r.AddCookie(&http.Cookie{Name: "locale", Value: "ja"})
+				return r
+			}(),
+			want: "ja-JP",
+		},
+		{
+			name:     "disabled cookie source skips cookie value",
+			detector: NewDetector(bundle, WithDetectorPriority(DetectorSourceCookie, DetectorSourceAccept), WithDetectorCookieName("")),
+			request: func() *http.Request {
+				r := httptestNewRequest("GET", "/")
+				r.AddCookie(&http.Cookie{Name: "lang", Value: "ja"})
+				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+				return r
+			}(),
+			want: "zh-Hans",
+		},
+		{
+			name:     "disabled header source skips explicit header",
+			detector: NewDetector(bundle, WithDetectorPriority(DetectorSourceHeader, DetectorSourceAccept), WithDetectorHeaderName("")),
+			request: func() *http.Request {
+				r := httptestNewRequest("GET", "/")
+				r.Header.Set("X-Language", "ja")
+				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+				return r
+			}(),
+			want: "zh-Hans",
+		},
 		{
 			name:     "custom query parameter name is used",
 			detector: NewDetector(bundle, WithDetectorQueryParam("locale")),
@@ -112,12 +146,14 @@ func TestDetectorDetectLocale(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.detector.DetectLocale(tt.request))
 		})
 	}
 }
 
 func TestDetectorExplicitLocaleFallsBackWhenMatchedLocaleHasNoLoadedTranslations(t *testing.T) {
+	t.Parallel()
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
@@ -133,6 +169,8 @@ func TestDetectorExplicitLocaleFallsBackWhenMatchedLocaleHasNoLoadedTranslations
 }
 
 func TestDetectorPriorityIgnoresInvalidSources(t *testing.T) {
+	t.Parallel()
+
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
@@ -155,6 +193,8 @@ func TestDetectorPriorityIgnoresInvalidSources(t *testing.T) {
 }
 
 func TestLocalizerFromContext(t *testing.T) {
+	t.Parallel()
+
 	loc := newTestLocalizer()
 
 	ctx := ContextWithLocalizer(context.Background(), loc)
@@ -164,16 +204,48 @@ func TestLocalizerFromContext(t *testing.T) {
 }
 
 func TestLocalizerFromContextMissing(t *testing.T) {
+	t.Parallel()
+
 	got, ok := LocalizerFromContext(context.Background())
 	assert.False(t, ok)
 	assert.Nil(t, got)
 }
 
 func TestLocalizerFromContextNilStoredValue(t *testing.T) {
+	t.Parallel()
+
 	ctx := ContextWithLocalizer(context.Background(), nil)
 	got, ok := LocalizerFromContext(ctx)
 	assert.False(t, ok)
 	assert.Nil(t, got)
+}
+
+func TestLocalizerFromContextNilContext(t *testing.T) {
+	t.Parallel()
+
+	var ctx context.Context
+	got, ok := LocalizerFromContext(ctx)
+	assert.False(t, ok)
+	assert.Nil(t, got)
+}
+
+func TestDetectorPriorityWithOnlyInvalidSourcesKeepsDefaults(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello"},
+		"zh-Hans": {"hello": "你好"},
+	}))
+
+	detector := NewDetector(bundle, WithDetectorPriority(DetectorSource("bad")))
+	request := httptestNewRequest("GET", "/")
+	request.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+
+	assert.Equal(t, "zh-Hans", detector.DetectLocale(request))
 }
 
 func httptestNewRequest(method, target string) *http.Request {
