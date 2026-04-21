@@ -18,7 +18,6 @@ For internal contracts and design rules, start with [SPECS/00-overview.md](SPECS
 ## Installation
 
 Requires Go 1.26+.
-This release is verified against `github.com/kaptinlin/messageformat-go v0.5.2` while continuing to use the ICU-compatible `github.com/kaptinlin/messageformat-go/v1` import path.
 
 ```bash
 go get github.com/kaptinlin/go-i18n@latest

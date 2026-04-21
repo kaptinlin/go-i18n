@@ -43,7 +43,6 @@ The library is not a framework, not a global translator runtime, and not a custo
 ### Message Formatting
 
 - Localized messages use `github.com/kaptinlin/messageformat-go/v1` as the formatting engine.
-- The current supported module release for that compatibility package is `github.com/kaptinlin/messageformat-go v0.5.2`.
 - ICU MessageFormat is the only supported path for pluralization and selector behavior.
 - Invalid templates and runtime formatting failures fall back to raw text where the existing API already exposes graceful degradation.
 - `Format` exists for dynamic messages that are not loaded from translation files; it is not the primary translation path.
