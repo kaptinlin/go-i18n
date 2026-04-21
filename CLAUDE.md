@@ -96,6 +96,8 @@ When you encounter a bug, limitation, or unexpected behavior in a dependency lib
 
 - Use Go 1.26.2 features when they simplify code without obscuring behavior.
 - Keep locale parsing and matching on `golang.org/x/text/language`.
+- Keep `github.com/kaptinlin/messageformat-go/v1` as the MessageFormat dependency; this package currently targets ICU MessageFormat v1 syntax and semantics, not the MessageFormat 2.0 mainline.
+- Keep the module graph on a release that still ships the `v1` compatibility package; the current validated dependency version is `github.com/kaptinlin/messageformat-go v0.5.2`.
 - Keep loaded translations effectively immutable after load; only runtime caches may mutate under synchronization.
 - Keep translation lookup Localizer-centric; `I18n` owns shared state and locale matching.
 - Reuse the existing `Option` helpers for configuration before adding new public knobs.
@@ -111,6 +113,7 @@ See [SPECS/00-overview.md](SPECS/00-overview.md) for the locale model, fallback 
 - Do not introduce global mutable translator state.
 - Do not add framework-specific HTTP integrations to the core package.
 - Do not bypass ICU MessageFormat with custom placeholder or pluralization logic.
+- Do not switch to the unversioned `github.com/kaptinlin/messageformat-go` MessageFormat 2.0 API unless the repository has been explicitly migrated off ICU MessageFormat v1 syntax end-to-end.
 - Do not encode spec prose as constants, enums, or helpers that no runtime code consumes.
 - Do not work around dependency bugs inline; use `reports/<dependency-name>.md` instead.
 - Do not `panic` in package code; return wrapped errors instead.
@@ -128,6 +131,7 @@ See [SPECS/00-overview.md](SPECS/00-overview.md) for the locale model, fallback 
 Core dependencies:
 
 - `github.com/kaptinlin/messageformat-go/v1` — ICU MessageFormat engine
+- validated from module version `github.com/kaptinlin/messageformat-go v0.5.2`
 - `golang.org/x/text/language` — locale parsing and matching
 - `github.com/go-json-experiment/json` — default JSON unmarshaler
 
