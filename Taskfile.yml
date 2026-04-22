@@ -50,7 +50,8 @@ tasks:
     desc: Update all dependencies
     cmds:
       - echo "Updating dependencies..."
-      - go get -u ./... && go mod tidy
+      - go get -u all
+      - go mod tidy
 
   test:
     desc: Run all tests with race detection

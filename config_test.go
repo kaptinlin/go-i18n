@@ -62,6 +62,14 @@ func TestRepositoryConfig(t *testing.T) {
 			want: []string{
 				"markdownlint:",
 				"npx --yes markdownlint-cli2 \"**/*.md\"",
+				"go get -u all",
+			},
+		},
+		{
+			name: "go.mod pins the current Go version",
+			path: "go.mod",
+			want: []string{
+				"go " + moduleGoVersion,
 			},
 		},
 	}
