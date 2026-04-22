@@ -189,13 +189,7 @@ func (i *I18n) Keys(locale string) []string {
 	if !ok {
 		return nil
 	}
-	translations := i.directTranslations[resolved]
-	keys := make([]string, 0, len(translations))
-	for key := range translations {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
+	return slices.Sorted(maps.Keys(i.directTranslations[resolved]))
 }
 
 func (i *I18n) resolveLocaleForTable(

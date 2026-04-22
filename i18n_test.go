@@ -256,11 +256,12 @@ func TestKeys(t *testing.T) {
 
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+		WithLocales("en", "zh-Hans", "ja-JP"),
 	)
 	err := bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"b": "B", "a": "A", "shared": "Shared"},
 		"zh-Hans": {"b": "乙"},
+		"ja-JP":   {},
 	})
 	assert.NoError(t, err)
 
@@ -270,6 +271,7 @@ func TestKeys(t *testing.T) {
 	if diff := cmp.Diff([]string{"b"}, bundle.Keys("zh-CN")); diff != "" {
 		t.Errorf("keys for zh-CN mismatch (-want +got):\n%s", diff)
 	}
+	assert.Nil(t, bundle.Keys("ja-JP"))
 	assert.Nil(t, bundle.Keys("af"))
 }
 
