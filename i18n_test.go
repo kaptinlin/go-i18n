@@ -447,6 +447,27 @@ func TestCircularFallback(t *testing.T) {
 	assert.Equal("Hello", localizer.Get("hello"))
 }
 
+func TestRecursiveFallbackUsesFirstAvailableTranslation(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
+		WithFallback(map[string][]string{
+			"ja-JP": {"ko-KR"},
+			"ko-KR": {"zh-Hans"},
+		}),
+	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"shared": "English"},
+		"ja-JP":   {},
+		"ko-KR":   {},
+		"zh-Hans": {"shared": "中文"},
+	}))
+
+	assert.Equal(t, "中文", bundle.NewLocalizer("ja-JP").Get("shared"))
+}
+
 func TestLookupInvalidMessageFormat(t *testing.T) {
 	t.Parallel()
 

@@ -376,17 +376,11 @@ func (i *I18n) formatFallbacks() {
 			if _, ok := trans[defTrans.name]; ok {
 				continue
 			}
-			if best := i.lookupBestFallback(locale, defTrans.name); best != nil {
+			if best := i.lookupFallback(locale, defTrans.name, make(map[string]struct{})); best != nil {
 				i.parsedTranslations[locale][defTrans.name] = best
 			}
 		}
 	}
-}
-
-// lookupBestFallback finds the best fallback translation for a given locale and
-// translation name by traversing the fallback chain.
-func (i *I18n) lookupBestFallback(locale, name string) *parsedTranslation {
-	return i.lookupFallback(locale, name, make(map[string]struct{}))
 }
 
 // lookupFallback recursively searches the fallback chain for a translation.
