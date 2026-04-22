@@ -32,7 +32,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "custom cookie name is used",
 			detector: NewDetector(bundle, WithDetectorCookieName("locale")),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/")
+				r := httptestNewRequest(t, "GET", "/")
 				r.AddCookie(&http.Cookie{Name: "locale", Value: "ja"})
 				return r
 			}(),
@@ -42,7 +42,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "disabled cookie source skips cookie value",
 			detector: NewDetector(bundle, WithDetectorPriority(DetectorSourceCookie, DetectorSourceAccept), WithDetectorCookieName("")),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/")
+				r := httptestNewRequest(t, "GET", "/")
 				r.AddCookie(&http.Cookie{Name: "lang", Value: "ja"})
 				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
 				return r
@@ -53,7 +53,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "disabled header source skips explicit header",
 			detector: NewDetector(bundle, WithDetectorPriority(DetectorSourceHeader, DetectorSourceAccept), WithDetectorHeaderName("")),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/")
+				r := httptestNewRequest(t, "GET", "/")
 				r.Header.Set("X-Language", "ja")
 				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
 				return r
@@ -63,20 +63,20 @@ func TestDetectorDetectLocale(t *testing.T) {
 		{
 			name:     "custom query parameter name is used",
 			detector: NewDetector(bundle, WithDetectorQueryParam("locale")),
-			request:  httptestNewRequest("GET", "/?locale=ja"),
+			request:  httptestNewRequest(t, "GET", "/?locale=ja"),
 			want:     "ja-JP",
 		},
 		{
 			name:     "falls back to default locale when no source matches",
 			detector: NewDetector(bundle),
-			request:  httptestNewRequest("GET", "/"),
+			request:  httptestNewRequest(t, "GET", "/"),
 			want:     "en",
 		},
 		{
 			name:     "query overrides accept language",
 			detector: NewDetector(bundle),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/?lang=ja")
+				r := httptestNewRequest(t, "GET", "/?lang=ja")
 				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
 				return r
 			}(),
@@ -86,7 +86,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "cookie used when query missing",
 			detector: NewDetector(bundle),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/")
+				r := httptestNewRequest(t, "GET", "/")
 				r.AddCookie(&http.Cookie{Name: "lang", Value: "zh-CN"})
 				return r
 			}(),
@@ -96,7 +96,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "custom header used when enabled",
 			detector: NewDetector(bundle),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/")
+				r := httptestNewRequest(t, "GET", "/")
 				r.Header.Set("X-Language", "ja-JP")
 				return r
 			}(),
@@ -106,7 +106,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "accept language fallback",
 			detector: NewDetector(bundle),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/")
+				r := httptestNewRequest(t, "GET", "/")
 				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
 				return r
 			}(),
@@ -116,7 +116,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "invalid explicit locale falls through to accept language",
 			detector: NewDetector(bundle),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/?lang=bad-locale")
+				r := httptestNewRequest(t, "GET", "/?lang=bad-locale")
 				r.Header.Set("Accept-Language", "ja;q=0.9")
 				return r
 			}(),
@@ -126,7 +126,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "custom priority uses header before query",
 			detector: NewDetector(bundle, WithDetectorPriority(DetectorSourceHeader, DetectorSourceQuery, DetectorSourceAccept)),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/?lang=zh-CN")
+				r := httptestNewRequest(t, "GET", "/?lang=zh-CN")
 				r.Header.Set("X-Language", "ja")
 				return r
 			}(),
@@ -136,7 +136,7 @@ func TestDetectorDetectLocale(t *testing.T) {
 			name:     "disabled query source skips query parameter",
 			detector: NewDetector(bundle, WithDetectorPriority(DetectorSourceAccept), WithDetectorQueryParam("")),
 			request: func() *http.Request {
-				r := httptestNewRequest("GET", "/?lang=ja")
+				r := httptestNewRequest(t, "GET", "/?lang=ja")
 				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
 				return r
 			}(),
@@ -163,7 +163,7 @@ func TestDetectorExplicitLocaleFallsBackWhenMatchedLocaleHasNoLoadedTranslations
 	}))
 
 	detector := NewDetector(bundle)
-	request := httptestNewRequest("GET", "/?lang=zh-CN")
+	request := httptestNewRequest(t, "GET", "/?lang=zh-CN")
 
 	assert.Equal(t, "en", detector.DetectLocale(request))
 }
@@ -186,7 +186,7 @@ func TestDetectorPriorityIgnoresInvalidSources(t *testing.T) {
 		WithDetectorHeaderName("X-Locale"),
 	)
 
-	request := httptestNewRequest("GET", "/?lang=en")
+	request := httptestNewRequest(t, "GET", "/?lang=en")
 	request.Header.Set("X-Locale", "zh-CN")
 
 	assert.Equal(t, "zh-Hans", detector.DetectLocale(request))
@@ -195,7 +195,7 @@ func TestDetectorPriorityIgnoresInvalidSources(t *testing.T) {
 func TestLocalizerFromContext(t *testing.T) {
 	t.Parallel()
 
-	loc := newTestLocalizer()
+	loc := newTestLocalizer(t)
 
 	ctx := ContextWithLocalizer(context.Background(), loc)
 	got, ok := LocalizerFromContext(ctx)
@@ -242,16 +242,16 @@ func TestDetectorPriorityWithOnlyInvalidSourcesKeepsDefaults(t *testing.T) {
 	}))
 
 	detector := NewDetector(bundle, WithDetectorPriority(DetectorSource("bad")))
-	request := httptestNewRequest("GET", "/")
+	request := httptestNewRequest(t, "GET", "/")
 	request.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
 
 	assert.Equal(t, "zh-Hans", detector.DetectLocale(request))
 }
 
-func httptestNewRequest(method, target string) *http.Request {
+func httptestNewRequest(tb testing.TB, method, target string) *http.Request {
+	tb.Helper()
+
 	req, err := http.NewRequest(method, target, nil)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(tb, err)
 	return req
 }

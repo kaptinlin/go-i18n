@@ -6,7 +6,7 @@ import (
 
 // BenchmarkLocalizerGet benchmarks simple token-based translation lookup.
 func BenchmarkLocalizerGet(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	for b.Loop() {
 		_ = localizer.Get("test_message")
 	}
@@ -14,7 +14,7 @@ func BenchmarkLocalizerGet(b *testing.B) {
 
 // BenchmarkLocalizerGetMiss benchmarks translation lookup with cache miss (fallback to key).
 func BenchmarkLocalizerGetMiss(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	for b.Loop() {
 		_ = localizer.Get("not_exists_message")
 	}
@@ -22,7 +22,7 @@ func BenchmarkLocalizerGetMiss(b *testing.B) {
 
 // BenchmarkLocalizerGetWithVars benchmarks template-based translation with variable substitution.
 func BenchmarkLocalizerGetWithVars(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	vars := Vars{"Name": "Yami"}
 	for b.Loop() {
 		_ = localizer.Get("test_template", vars)
@@ -31,7 +31,7 @@ func BenchmarkLocalizerGetWithVars(b *testing.B) {
 
 // BenchmarkLocalizerGetPlural benchmarks plural form translation.
 func BenchmarkLocalizerGetPlural(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	vars := Vars{"count": 2}
 	for b.Loop() {
 		_ = localizer.Get("test_plural", vars)
@@ -40,7 +40,7 @@ func BenchmarkLocalizerGetPlural(b *testing.B) {
 
 // BenchmarkLocalizerGetPluralZero benchmarks plural form translation with zero value.
 func BenchmarkLocalizerGetPluralZero(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	vars := Vars{"count": 0}
 	for b.Loop() {
 		_ = localizer.Get("test_plural", vars)
@@ -49,7 +49,7 @@ func BenchmarkLocalizerGetPluralZero(b *testing.B) {
 
 // BenchmarkLocalizerGetX benchmarks context-disambiguated translation.
 func BenchmarkLocalizerGetX(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	for b.Loop() {
 		_ = localizer.GetX("Post", "verb")
 	}
@@ -57,7 +57,7 @@ func BenchmarkLocalizerGetX(b *testing.B) {
 
 // BenchmarkLocalizerGetTextBased benchmarks text-based translation lookup.
 func BenchmarkLocalizerGetTextBased(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	for b.Loop() {
 		_ = localizer.Get("Hello, world!")
 	}
@@ -167,7 +167,7 @@ func BenchmarkNewLocalizer(b *testing.B) {
 
 // BenchmarkParallel benchmarks concurrent translation lookups.
 func BenchmarkLocalizerGetParallel(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			_ = localizer.Get("test_message")
@@ -177,7 +177,7 @@ func BenchmarkLocalizerGetParallel(b *testing.B) {
 
 // BenchmarkLocalizerGetWithVarsParallel benchmarks concurrent template translations.
 func BenchmarkLocalizerGetWithVarsParallel(b *testing.B) {
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(b)
 	b.RunParallel(func(pb *testing.PB) {
 		vars := Vars{"Name": "Yami"}
 		for pb.Next() {

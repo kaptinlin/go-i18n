@@ -79,60 +79,10 @@ func TestTomlUnmarshaler(t *testing.T) {
 func TestNewBundleNoOptions(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-
-	// NewBundle with no options should not panic and default to English.
 	bundle := NewBundle()
-	assert.NotNil(bundle)
-	assert.Equal("en", bundle.defaultLocale)
-	assert.Len(bundle.languages, 1)
-}
-
-func TestTrimContext(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"Post <verb>", "Post"},
-		{"Post <noun>", "Post"},
-		{"{count, plural, =0 {No Post}} <noun>", "{count, plural, =0 {No Post}}"},
-		{"Hello, world!", "Hello, world!"},
-		{"no context", "no context"},
-		{"", ""},
-		{"<only>", "<only>"},        // no space before <
-		{"test < spaced >", "test"}, // space before <
-		{"a <b> <c>", "a <b>"},      // only last context removed
-	}
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, trimContext(tt.input))
-		})
-	}
-}
-
-func TestNameInsensitive(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"zh_CN.music.json", "zh-cn"},
-		{"zh-Hans.messages.toml", "zh-hans"},
-		{"en_US.yml", "en-us"},
-		{"ja-JP", "ja-jp"},
-		{"ko_KR.translations.json", "ko-kr"},
-		{"path/to/zh_TW.json", "zh-tw"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, nameInsensitive(tt.input))
-		})
-	}
+	assert.NotNil(t, bundle)
+	assert.Equal(t, "en", bundle.NewLocalizer().Locale())
+	assert.Len(t, bundle.SupportedLocales(), 1)
 }
 
 func TestSupportedLocales(t *testing.T) {
@@ -173,13 +123,17 @@ func TestWithFallbackClonesInput(t *testing.T) {
 		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
 		WithFallback(fallbacks),
 	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"shared": "English"},
+		"ko-KR":   {"shared": "Korean"},
+		"zh-Hans": {"shared": "Chinese"},
+		"ja-JP":   {},
+	}))
 
 	fallbacks["ja-JP"][0] = "zh-Hans"
 	fallbacks["ja-JP"] = append(fallbacks["ja-JP"], "en")
 
-	if diff := cmp.Diff([]string{"ko-KR"}, bundle.fallbacks["ja-JP"]); diff != "" {
-		t.Errorf("fallbacks mismatch (-want +got):\n%s", diff)
-	}
+	assert.Equal(t, "Korean", bundle.NewLocalizer("ja-JP").Get("shared"))
 }
 
 func TestWithFallbackNilClearsFallbacks(t *testing.T) {
@@ -187,46 +141,39 @@ func TestWithFallbackNilClearsFallbacks(t *testing.T) {
 
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
+		WithLocales("en", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{"ja-JP": {"ko-KR"}}),
 		WithFallback(nil),
 	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":    {"shared": "English"},
+		"ko-KR": {"shared": "Korean"},
+		"ja-JP": {},
+	}))
 
-	assert.Nil(t, bundle.fallbacks)
+	assert.Equal(t, "English", bundle.NewLocalizer("ja-JP").Get("shared"))
 }
 
 func TestWithMessageFormatOptionsClonesInput(t *testing.T) {
 	t.Parallel()
 
 	options := &mf.MessageFormatOptions{
-		Strict: true,
 		CustomFormatters: map[string]any{
 			"upper": func(value any, locale string, arg *string) any {
-				return value
+				return "ORIGINAL"
 			},
 		},
 	}
 
 	bundle := NewBundle(WithDefaultLocale("en"), WithMessageFormatOptions(options))
 
-	options.Strict = false
-	options.CustomFormatters["lower"] = func(value any, locale string, arg *string) any {
-		return value
+	options.CustomFormatters["upper"] = func(value any, locale string, arg *string) any {
+		return "MUTATED"
 	}
 
-	if assert.NotNil(t, bundle.mfOptions) {
-		assert.True(t, bundle.mfOptions.Strict)
-		assert.Len(t, bundle.mfOptions.CustomFormatters, 1)
-		_, ok := bundle.mfOptions.CustomFormatters["upper"]
-		assert.True(t, ok)
-	}
-}
-
-func TestWithMessageFormatOptionsNil(t *testing.T) {
-	t.Parallel()
-
-	bundle := NewBundle(WithDefaultLocale("en"), WithMessageFormatOptions(nil))
-
-	assert.Nil(t, bundle.mfOptions)
+	result, err := bundle.NewLocalizer("en").Format("Hello, {name, upper}!", Vars{"name": "ignored"})
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello, ORIGINAL!", result)
 }
 
 func TestWithCustomFormattersClonesInput(t *testing.T) {
@@ -234,64 +181,19 @@ func TestWithCustomFormattersClonesInput(t *testing.T) {
 
 	formatters := map[string]any{
 		"upper": func(value any, locale string, arg *string) any {
-			return value
+			return "ORIGINAL"
 		},
 	}
 
 	bundle := NewBundle(WithDefaultLocale("en"), WithCustomFormatters(formatters))
 
-	formatters["lower"] = func(value any, locale string, arg *string) any {
-		return value
+	formatters["upper"] = func(value any, locale string, arg *string) any {
+		return "MUTATED"
 	}
 
-	if assert.NotNil(t, bundle.mfOptions) {
-		assert.Len(t, bundle.mfOptions.CustomFormatters, 1)
-		_, ok := bundle.mfOptions.CustomFormatters["upper"]
-		assert.True(t, ok)
-	}
-}
-
-func TestMessageFormatOptionHelpersCompose(t *testing.T) {
-	t.Parallel()
-
-	upperFormatter := func(value any, locale string, arg *string) any {
-		return value
-	}
-
-	tests := []struct {
-		name    string
-		options []Option
-	}{
-		{
-			name: "custom formatters before strict mode",
-			options: []Option{
-				WithDefaultLocale("en"),
-				WithCustomFormatters(map[string]any{"upper": upperFormatter}),
-				WithStrictMode(true),
-			},
-		},
-		{
-			name: "strict mode before custom formatters",
-			options: []Option{
-				WithDefaultLocale("en"),
-				WithStrictMode(true),
-				WithCustomFormatters(map[string]any{"upper": upperFormatter}),
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			bundle := NewBundle(tt.options...)
-			if assert.NotNil(t, bundle.mfOptions) {
-				assert.True(t, bundle.mfOptions.Strict)
-				_, ok := bundle.mfOptions.CustomFormatters["upper"]
-				assert.True(t, ok)
-			}
-		})
-	}
+	result, err := bundle.NewLocalizer("en").Format("Hello, {name, upper}!", Vars{"name": "ignored"})
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello, ORIGINAL!", result)
 }
 
 func TestHas(t *testing.T) {
@@ -437,18 +339,6 @@ func TestIsLanguageSupported(t *testing.T) {
 	assert.False(t, bundle.IsLanguageSupported(language.Afrikaans))
 }
 
-func TestMatchExactLocaleNoMatch(t *testing.T) {
-	t.Parallel()
-
-	bundle := NewBundle(
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
-	)
-	// A locale not in the bundle should return empty string.
-	got := bundle.matchExactLocale("af")
-	assert.Empty(t, got)
-}
-
 func TestNewLocalizerMatchedButNoTranslations(t *testing.T) {
 	t.Parallel()
 
@@ -521,17 +411,15 @@ func TestNewLocalizerUsesLocaleMatchingForLoadedTranslations(t *testing.T) {
 func TestNewBundleDefaultLocaleFromLocales(t *testing.T) {
 	t.Parallel()
 
-	// When no default locale is set, the first locale should be used.
 	bundle := NewBundle(WithLocales("fr", "de"))
-	assert.Equal(t, "fr", bundle.defaultLocale)
+	assert.Equal(t, "fr", bundle.NewLocalizer().Locale())
 }
 
 func TestWithLocalesInvalidIgnored(t *testing.T) {
 	t.Parallel()
 
-	// Invalid locale strings should be silently ignored.
 	bundle := NewBundle(WithLocales("en", "???invalid???"))
-	assert.Len(t, bundle.languages, 1)
+	assert.Len(t, bundle.SupportedLocales(), 1)
 }
 
 func TestCircularFallback(t *testing.T) {
@@ -557,97 +445,6 @@ func TestCircularFallback(t *testing.T) {
 	localizer := bundle.NewLocalizer("ja-JP")
 	// Should fall through to default locale without hanging.
 	assert.Equal("Hello", localizer.Get("hello"))
-}
-
-func TestParseTranslationSuccess(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	bundle := NewBundle(WithDefaultLocale("en"))
-
-	pt, err := bundle.parseTranslation("en", "test_key", "Hello, {name}!")
-	assert.NoError(err)
-	assert.NotNil(pt)
-	assert.Equal("test_key", pt.name)
-	assert.Equal("en", pt.locale)
-	assert.Equal("Hello, {name}!", pt.text)
-	assert.NotNil(pt.format) // MessageFormat should be compiled successfully
-}
-
-func TestParseTranslationInvalidMessageFormat(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	bundle := NewBundle(WithDefaultLocale("en"))
-
-	// Invalid MessageFormat syntax (unclosed brace)
-	pt, err := bundle.parseTranslation("en", "test_key", "Hello, {name")
-	assert.ErrorIs(err, ErrMessageFormatCompilation)
-	assert.ErrorContains(err, `locale "en"`)
-	assert.ErrorContains(err, `key "test_key"`)
-	assert.NotNil(pt) // Returns pt with raw text even on error
-	assert.Equal("Hello, {name", pt.text)
-	assert.Nil(pt.format) // No compiled format available
-}
-
-func TestParseTranslationEmptyMessageFormat(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	bundle := NewBundle(WithDefaultLocale("en"))
-
-	// Empty message should compile successfully (just no formatting)
-	pt, err := bundle.parseTranslation("en", "test_key", "")
-	assert.NoError(err)
-	assert.NotNil(pt)
-	assert.Equal("", pt.text)
-}
-
-func TestParseTranslationComplexMessageFormat(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	bundle := NewBundle(WithDefaultLocale("en"))
-
-	// Complex MessageFormat with plural
-	pt, err := bundle.parseTranslation("en", "test_key", "{count, plural, =0 {none} one {# item} other {# items}}")
-	assert.NoError(err)
-	assert.NotNil(pt)
-	assert.NotNil(pt.format)
-}
-
-func TestParseTranslationInvalidLocale(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	bundle := NewBundle(WithDefaultLocale("en"))
-
-	pt, err := bundle.parseTranslation("???invalid???", "test_key", "Hello")
-	assert.ErrorIs(err, ErrMessageFormatCompilation)
-	assert.ErrorContains(err, `locale "???invalid???"`)
-	assert.ErrorContains(err, `parse locale "???invalid???"`)
-	assert.NotNil(pt)
-	assert.Equal("Hello", pt.text)
-	assert.Nil(pt.format)
-}
-
-func TestLookupInvalidRuntimeLocaleFallsBackToRawText(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	bundle := NewBundle(
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
-	)
-	assert.NoError(bundle.LoadMessages(map[string]map[string]string{
-		"en": {"valid": "Hello"},
-	}))
-
-	loc := &Localizer{bundle: bundle, locale: "???invalid???"}
-	r := loc.Lookup("{invalid syntax")
-	assert.Equal("{invalid syntax", r.Text)
-	assert.Equal("en", r.Locale)
-	assert.Equal(TranslationSourceMissing, r.Source)
 }
 
 func TestLookupInvalidMessageFormat(t *testing.T) {

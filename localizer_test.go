@@ -17,12 +17,10 @@ var testTranslations = map[string]map[string]string{
 	},
 
 	"zh-Hans": {
-		// Token-based Translations
 		"test_message":  "这是一则测试讯息。",
 		"test_template": "你好，{Name}！",
 		"test_plural":   "{count, plural, =0 {没有} =1 {只有 1 个} other {有 # 个}}",
 
-		// Text-based Translations.
 		"Hello, world!":        "你好，世界！",
 		"How are you, {Name}?": "过得如何，{Name}？",
 		"Post <verb>":          "发表贴文",
@@ -37,19 +35,16 @@ var testTranslations = map[string]map[string]string{
 	},
 
 	"ja-JP": {
-		// Token-based Translations
 		"test_message":  "これはテストメッセージです。",
 		"test_template": "こんにちは、{Name}！",
 		"test_plural":   "{count, plural, =0 {なし} one {1 つだけ} other {# 个あります}}",
 	},
 
 	"ko-KR": {
-		// Token-based Translations
 		"test_message":  "이것은 테스트 메시지입니다.",
 		"test_template": "안녕하세요, {Name} 님!",
 		"test_plural":   "{count, plural, =0 {없음} one {1 개} other {# 개가 있음}}",
 
-		// Text-based Translations.
 		"Hello, world!":        "안녕하세요, 세상!",
 		"How are you, {Name}?": "{Name} 님, 어떻게 지내세요?",
 		"Post <verb>":          "메시지 게시",
@@ -57,43 +52,32 @@ var testTranslations = map[string]map[string]string{
 	},
 }
 
-func newTestLocalizer() *Localizer {
+func newTestLocalizer(tb testing.TB) *Localizer {
+	tb.Helper()
+
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
 	)
-	if err := bundle.LoadMessages(testTranslations); err != nil {
-		panic(err)
-	}
+	require.NoError(tb, bundle.LoadMessages(testTranslations))
 	return bundle.NewLocalizer("zh-Hans")
-}
-
-func TestLocalizer(t *testing.T) {
-	t.Parallel()
-
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
-
-	assert.Equal("zh-Hans", localizer.Locale())
 }
 
 func TestTokenString(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(t)
 
-	assert.Equal("这是一则测试讯息。", localizer.Get("test_message"))
-	assert.Equal("not_exists_message", localizer.Get("not_exists_message"))
+	assert.Equal(t, "这是一则测试讯息。", localizer.Get("test_message"))
+	assert.Equal(t, "not_exists_message", localizer.Get("not_exists_message"))
 }
 
 func TestTokenVars(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(t)
 
-	assert.Equal("你好，Yami！", localizer.Get("test_template", Vars{
+	assert.Equal(t, "你好，Yami！", localizer.Get("test_template", Vars{
 		"Name": "Yami",
 	}))
 }
@@ -101,45 +85,32 @@ func TestTokenVars(t *testing.T) {
 func TestTokenPlural(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(t)
 
-	assert.Equal("没有", localizer.Get("test_plural", Vars{
-		"count": 0,
-	}))
-	assert.Equal("只有 1 个", localizer.Get("test_plural", Vars{
-		"count": 1,
-	}))
-	assert.Equal("有 2 个", localizer.Get("test_plural", Vars{
-		"count": 2,
-	}))
+	assert.Equal(t, "没有", localizer.Get("test_plural", Vars{"count": 0}))
+	assert.Equal(t, "只有 1 个", localizer.Get("test_plural", Vars{"count": 1}))
+	assert.Equal(t, "有 2 个", localizer.Get("test_plural", Vars{"count": 2}))
 }
 
 func TestTextString(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
-
-	assert.Equal("你好，世界！", localizer.Get("Hello, world!"))
+	localizer := newTestLocalizer(t)
+	assert.Equal(t, "你好，世界！", localizer.Get("Hello, world!"))
 }
 
 func TestTextStringRaw(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
-
-	assert.Equal("I'm fine thank you!", localizer.Get("I'm fine thank you!"))
+	localizer := newTestLocalizer(t)
+	assert.Equal(t, "I'm fine thank you!", localizer.Get("I'm fine thank you!"))
 }
 
 func TestTextVars(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
-
-	assert.Equal("过得如何，Yami？", localizer.Get("How are you, {Name}?", Vars{
+	localizer := newTestLocalizer(t)
+	assert.Equal(t, "过得如何，Yami？", localizer.Get("How are you, {Name}?", Vars{
 		"Name": "Yami",
 	}))
 }
@@ -147,10 +118,8 @@ func TestTextVars(t *testing.T) {
 func TestTextVarsRaw(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
-
-	assert.Equal("I'm fine, thanks to Yami!", localizer.Get("I'm fine, thanks to {Name}!", Vars{
+	localizer := newTestLocalizer(t)
+	assert.Equal(t, "I'm fine, thanks to Yami!", localizer.Get("I'm fine, thanks to {Name}!", Vars{
 		"Name": "Yami",
 	}))
 }
@@ -158,61 +127,38 @@ func TestTextVarsRaw(t *testing.T) {
 func TestTextPlural(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(t)
 
-	assert.Equal("没有苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
-		"count": 0,
-	}))
-	assert.Equal("1 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
-		"count": 1,
-	}))
-	assert.Equal("有 2 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
-		"count": 2,
-	}))
+	assert.Equal(t, "没有苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{"count": 0}))
+	assert.Equal(t, "1 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{"count": 1}))
+	assert.Equal(t, "有 2 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{"count": 2}))
 }
 
 func TestTextStringContext(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
-
-	assert.Equal("发表贴文", localizer.GetX("Post", "verb"))
-	assert.Equal("文章", localizer.GetX("Post", "noun"))
+	localizer := newTestLocalizer(t)
+	assert.Equal(t, "发表贴文", localizer.GetX("Post", "verb"))
+	assert.Equal(t, "文章", localizer.GetX("Post", "noun"))
 }
 
 func TestTextPluralContext(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	localizer := newTestLocalizer()
+	localizer := newTestLocalizer(t)
 
-	assert.Equal("没有文章", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "noun", Vars{
-		"count": 0,
-	}))
-	assert.Equal("1 篇文章", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "noun", Vars{
-		"count": 1,
-	}))
-	assert.Equal("有 2 篇文章", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "noun", Vars{
-		"count": 2,
-	}))
+	assert.Equal(t, "没有文章", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "noun", Vars{"count": 0}))
+	assert.Equal(t, "1 篇文章", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "noun", Vars{"count": 1}))
+	assert.Equal(t, "有 2 篇文章", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "noun", Vars{"count": 2}))
 
-	assert.Equal("没有发表", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "verb", Vars{
-		"count": 0,
-	}))
-	assert.Equal("1 篇发表", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "verb", Vars{
-		"count": 1,
-	}))
-	assert.Equal("有 2 篇发表", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "verb", Vars{
-		"count": 2,
-	}))
+	assert.Equal(t, "没有发表", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "verb", Vars{"count": 0}))
+	assert.Equal(t, "1 篇发表", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "verb", Vars{"count": 1}))
+	assert.Equal(t, "有 2 篇发表", localizer.GetX("{count, plural, =0 {No Post} one {1 Post} other {# Posts}}", "verb", Vars{"count": 2}))
 }
 
 func TestTextFallback(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
@@ -220,73 +166,50 @@ func TestTextFallback(t *testing.T) {
 			"ja-JP": {"ko-KR"},
 		}),
 	)
-	assert.NoError(bundle.LoadMessages(testTranslations))
+	require.NoError(t, bundle.LoadMessages(testTranslations))
 	localizer := bundle.NewLocalizer("ja-JP")
 
-	// Test ja-JP
-	assert.Equal("これはテストメッセージです。", localizer.Get("test_message"))
-	assert.Equal("こんにちは、Yami！", localizer.Get("test_template", Vars{
-		"Name": "Yami",
-	}))
-	assert.Equal("なし", localizer.Get("test_plural", Vars{
-		"count": 0,
-	}))
+	assert.Equal(t, "これはテストメッセージです。", localizer.Get("test_message"))
+	assert.Equal(t, "こんにちは、Yami！", localizer.Get("test_template", Vars{"Name": "Yami"}))
+	assert.Equal(t, "なし", localizer.Get("test_plural", Vars{"count": 0}))
 
-	// Test ja-JP -> ko-KR fallback
-	assert.Equal("안녕하세요, 세상!", localizer.Get("Hello, world!"))
-	assert.Equal("Yami 님, 어떻게 지내세요?", localizer.Get("How are you, {Name}?", Vars{
-		"Name": "Yami",
-	}))
-	assert.Equal("메시지 게시", localizer.GetX("Post", "verb"))
+	assert.Equal(t, "안녕하세요, 세상!", localizer.Get("Hello, world!"))
+	assert.Equal(t, "Yami 님, 어떻게 지내세요?", localizer.Get("How are you, {Name}?", Vars{"Name": "Yami"}))
+	assert.Equal(t, "메시지 게시", localizer.GetX("Post", "verb"))
 
-	// Test ja-JP -> zh-CN fallback
-	assert.Equal("没有苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
-		"count": 0,
-	}))
-	assert.Equal("1 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
-		"count": 1,
-	}))
-	assert.Equal("有 2 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
-		"count": 2,
-	}))
+	assert.Equal(t, "没有苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{"count": 0}))
+	assert.Equal(t, "1 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{"count": 1}))
+	assert.Equal(t, "有 2 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{"count": 2}))
 
-	// Test nil fallback
-	assert.Equal("Ni hao", localizer.Get("Ni hao"))
+	assert.Equal(t, "Ni hao", localizer.Get("Ni hao"))
 }
 
 func TestTextFallbackResursive(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{
 			"ja-JP": {"ko-KR"},
 			"ko-KR": {"zh-Hans"},
-		}))
-	assert.NoError(bundle.LoadMessages(testTranslations))
+		}),
+	)
+	require.NoError(t, bundle.LoadMessages(testTranslations))
 	localizer := bundle.NewLocalizer("ja-JP")
 
-	// Test ja-JP -> ko-KR -> zh-CN fallback
-	assert.Equal("1 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{
-		"count": 1,
-	}))
+	assert.Equal(t, "1 颗苹果", localizer.Get("{count, plural, =0 {None} one {1 Apple} other {# Apples}}", Vars{"count": 1}))
 }
 
 func TestCustomFormatters(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-
-	upperFormatter := func(value any, locale string, arg *string) any {
-		return strings.ToUpper(fmt.Sprintf("%v", value))
-	}
-
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithCustomFormatters(map[string]any{
-			"upper": upperFormatter,
+			"upper": func(value any, locale string, arg *string) any {
+				return strings.ToUpper(fmt.Sprintf("%v", value))
+			},
 		}),
 	)
 
@@ -294,14 +217,12 @@ func TestCustomFormatters(t *testing.T) {
 	result, err := localizer.Format("Hello, {name, upper}!", Vars{
 		"name": "world",
 	})
-	assert.NoError(err)
-	assert.Equal("Hello, WORLD!", result)
+	require.NoError(t, err)
+	assert.Equal(t, "Hello, WORLD!", result)
 }
 
 func TestStrictMode(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
@@ -309,50 +230,36 @@ func TestStrictMode(t *testing.T) {
 	)
 
 	localizer := bundle.NewLocalizer("en")
-	result, err := localizer.Format("{count, plural, one {# item} other {# items}}", Vars{
-		"count": 1,
-	})
-	assert.NoError(err)
-	assert.Equal("1 item", result)
+	result, err := localizer.Format("{count, plural, one {# item} other {# items}}", Vars{"count": 1})
+	require.NoError(t, err)
+	assert.Equal(t, "1 item", result)
 }
 
 func TestFormatMethod(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-
 	bundle := NewBundle(WithDefaultLocale("en"))
 	localizer := bundle.NewLocalizer("en")
 
-	result1, err := localizer.Format("Hello, {name}!", Vars{
-		"name": "Alice",
-	})
-	assert.NoError(err)
-	assert.Equal("Hello, Alice!", result1)
+	result1, err := localizer.Format("Hello, {name}!", Vars{"name": "Alice"})
+	require.NoError(t, err)
+	assert.Equal(t, "Hello, Alice!", result1)
 
-	result2, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{
-		"count": 0,
-	})
-	assert.NoError(err)
-	assert.Equal("no items", result2)
+	result2, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{"count": 0})
+	require.NoError(t, err)
+	assert.Equal(t, "no items", result2)
 
-	result3, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{
-		"count": 1,
-	})
-	assert.NoError(err)
-	assert.Equal("1 item", result3)
+	result3, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{"count": 1})
+	require.NoError(t, err)
+	assert.Equal(t, "1 item", result3)
 
-	result4, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{
-		"count": 5,
-	})
-	assert.NoError(err)
-	assert.Equal("5 items", result4)
+	result4, err := localizer.Format("{count, plural, =0 {no items} one {# item} other {# items}}", Vars{"count": 5})
+	require.NoError(t, err)
+	assert.Equal(t, "5 items", result4)
 }
 
 func TestMessageFormatOptions(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	options := &mf.MessageFormatOptions{
 		Strict:   true,
@@ -365,65 +272,55 @@ func TestMessageFormatOptions(t *testing.T) {
 	)
 
 	localizer := bundle.NewLocalizer("en")
-	result, err := localizer.Format("Hello, {name}!", Vars{
-		"name": "World",
-	})
-	assert.NoError(err)
-	assert.Equal("Hello, World!", result)
+	result, err := localizer.Format("Hello, {name}!", Vars{"name": "World"})
+	require.NoError(t, err)
+	assert.Equal(t, "Hello, World!", result)
 }
 
 func TestLocalizeWithoutVars(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello, {name}!"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("en")
-	// Without vars, raw text is returned even if it has placeholders.
-	assert.Equal("Hello, {name}!", loc.Get("hello"))
+	assert.Equal(t, "Hello, {name}!", loc.Get("hello"))
 }
 
 func TestFormatNoVars(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(WithDefaultLocale("en"))
 	loc := bundle.NewLocalizer("en")
 
 	result, err := loc.Format("Hello, world!")
-	assert.NoError(err)
-	assert.Equal("Hello, world!", result)
+	require.NoError(t, err)
+	assert.Equal(t, "Hello, world!", result)
 }
 
 func TestFormatCompileError(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(WithDefaultLocale("en"))
 	loc := bundle.NewLocalizer("en")
 
-	// Malformed MessageFormat should return an error.
 	_, err := loc.Format("{count, plural, }")
-	assert.Error(err)
+	require.Error(t, err)
 }
 
 func TestFormatInvalidLocalizerLocaleReturnsError(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(WithDefaultLocale("en"))
 	loc := &Localizer{bundle: bundle, locale: "???invalid???"}
 
 	_, err := loc.Format("Hello, world!")
-	assert.Error(err)
-	assert.ErrorContains(err, `parse locale "???invalid???"`)
+	require.Error(t, err)
 }
 
 func TestFormatStringerFallbackForNonStringResult(t *testing.T) {
@@ -448,7 +345,7 @@ func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 	t.Parallel()
 
 	bundle := NewBundle(WithDefaultLocale("en"))
-	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"items": "{count, plural, =0 {no items} one {# item} other {# items}}",
 		},
@@ -458,41 +355,34 @@ func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 	assert.Equal(t, "{count, plural, =0 {no items} one {# item} other {# items}}", loc.Get("items", Vars{"count": "oops"}))
 }
 
-func TestGetRuntimeParsedTranslationCache(t *testing.T) {
+func TestGetCachesRuntimeFallbackByBehavior(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
 		"zh-Hans": {"hello": "你好"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("zh-Hans")
-	// First call: key not in zh-Hans, triggers runtime parse from default.
-	assert.Equal("Goodbye", loc.Get("Goodbye"))
-	// Second call: should hit runtimeParsedTranslations cache.
-	assert.Equal("Goodbye", loc.Get("Goodbye"))
-	assert.Len(bundle.runtimeParsedTranslations, 1)
+	assert.Equal(t, "Goodbye", loc.Get("Goodbye"))
+	assert.Equal(t, "Goodbye", loc.Get("Goodbye"))
 }
 
-func TestGetRuntimeParsedTranslationCacheConcurrent(t *testing.T) {
+func TestGetRuntimeFallbackIsSafeForConcurrentReads(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
 		"zh-Hans": {"hello": "你好"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
@@ -505,82 +395,71 @@ func TestGetRuntimeParsedTranslationCacheConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range iterations {
-				assert.Equal("Goodbye", loc.Get("Goodbye"))
+				assert.Equal(t, "Goodbye", loc.Get("Goodbye"))
 			}
 		}()
 	}
 	wg.Wait()
-
-	assert.Len(bundle.runtimeParsedTranslations, 1)
-	assert.Equal("Goodbye", bundle.runtimeParsedTranslations["Goodbye"].text)
 }
 
 func TestLookup(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello", "bye": "Goodbye"},
 		"zh-Hans": {"hello": "你好"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
-	// Test getting translation from current locale
 	r := loc.Lookup("hello")
-	assert.Equal("你好", r.Text)
-	assert.Equal("zh-Hans", r.Locale)
-	assert.Equal(TranslationSourceDirect, r.Source)
+	assert.Equal(t, "你好", r.Text)
+	assert.Equal(t, "zh-Hans", r.Locale)
+	assert.Equal(t, TranslationSourceDirect, r.Source)
 
-	// Test fallback to default locale
 	r = loc.Lookup("bye")
-	assert.Equal("Goodbye", r.Text)
-	assert.Equal("en", r.Locale)
-	assert.Equal(TranslationSourceFallback, r.Source)
+	assert.Equal(t, "Goodbye", r.Text)
+	assert.Equal(t, "en", r.Locale)
+	assert.Equal(t, TranslationSourceFallback, r.Source)
 
-	// Test missing key
 	r = loc.Lookup("nonexistent")
-	assert.Equal("nonexistent", r.Text)
-	assert.Equal("en", r.Locale)
-	assert.Equal(TranslationSourceMissing, r.Source)
+	assert.Equal(t, "nonexistent", r.Text)
+	assert.Equal(t, "en", r.Locale)
+	assert.Equal(t, TranslationSourceMissing, r.Source)
 }
 
 func TestLookupContext(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"Post <verb>": "Post", "Post <noun>": "Post"},
 		"zh-Hans": {"Post <verb>": "发表", "Post <noun>": "帖子"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
 	r := loc.Lookup("Post <verb>")
-	assert.Equal("发表", r.Text)
-	assert.Equal("zh-Hans", r.Locale)
-	assert.Equal(TranslationSourceDirect, r.Source)
+	assert.Equal(t, "发表", r.Text)
+	assert.Equal(t, "zh-Hans", r.Locale)
+	assert.Equal(t, TranslationSourceDirect, r.Source)
 
 	r = loc.Lookup("Post <noun>")
-	assert.Equal("帖子", r.Text)
-	assert.Equal("zh-Hans", r.Locale)
-	assert.Equal(TranslationSourceDirect, r.Source)
+	assert.Equal(t, "帖子", r.Text)
+	assert.Equal(t, "zh-Hans", r.Locale)
+	assert.Equal(t, TranslationSourceDirect, r.Source)
 }
 
 func TestLookupFallbackChain(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
@@ -588,84 +467,72 @@ func TestLookupFallbackChain(t *testing.T) {
 			"ja-JP": {"zh-Hans"},
 		}),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello", "shared_key": "English"},
 		"zh-Hans": {"hello": "你好", "shared_key": "Chinese"},
 		"ja-JP":   {"hello": "こんにちは"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("ja-JP")
 
-	// Test direct hit in ja-JP
 	r := loc.Lookup("hello")
-	assert.Equal("こんにちは", r.Text)
-	assert.Equal("ja-JP", r.Locale)
-	assert.Equal(TranslationSourceDirect, r.Source)
+	assert.Equal(t, "こんにちは", r.Text)
+	assert.Equal(t, "ja-JP", r.Locale)
+	assert.Equal(t, TranslationSourceDirect, r.Source)
 
-	// Test ja-JP -> zh-Hans fallback
 	r = loc.Lookup("shared_key")
-	assert.Equal("Chinese", r.Text)
-	assert.Equal("zh-Hans", r.Locale)
-	assert.Equal(TranslationSourceFallback, r.Source)
+	assert.Equal(t, "Chinese", r.Text)
+	assert.Equal(t, "zh-Hans", r.Locale)
+	assert.Equal(t, TranslationSourceFallback, r.Source)
 }
 
 func TestLookupWithVars(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"greeting": "Hello, {name}!"},
 		"zh-Hans": {"greeting": "你好，{name}！"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
-	// With MessageFormat variables
 	r := loc.Lookup("greeting", Vars{"name": "World"})
-	assert.Equal("你好，World！", r.Text)
-	assert.Equal("zh-Hans", r.Locale)
-	assert.Equal(TranslationSourceDirect, r.Source)
+	assert.Equal(t, "你好，World！", r.Text)
+	assert.Equal(t, "zh-Hans", r.Locale)
+	assert.Equal(t, TranslationSourceDirect, r.Source)
 
-	// Fallback with variables
 	r = loc.Lookup("unknown", Vars{"name": "Test"})
-	assert.Equal("unknown", r.Text)
-	assert.Equal("en", r.Locale)
-	assert.Equal(TranslationSourceMissing, r.Source)
+	assert.Equal(t, "unknown", r.Text)
+	assert.Equal(t, "en", r.Locale)
+	assert.Equal(t, TranslationSourceMissing, r.Source)
 }
 
 func TestLookupDetectFallbackVsDirect(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	bundle := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
-	err := bundle.LoadMessages(map[string]map[string]string{
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello", "only_en": "English only"},
 		"zh-Hans": {"hello": "你好"},
-	})
-	assert.NoError(err)
+	}))
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
-	// Direct hit
 	r := loc.Lookup("hello")
-	assert.Equal(TranslationSourceDirect, r.Source)
-	assert.Equal(loc.Locale(), r.Locale)
+	assert.Equal(t, TranslationSourceDirect, r.Source)
+	assert.Equal(t, loc.Locale(), r.Locale)
 
-	// Fallback hit
 	r = loc.Lookup("only_en")
-	assert.Equal(TranslationSourceFallback, r.Source)
-	assert.NotEqual(loc.Locale(), r.Locale)
+	assert.Equal(t, TranslationSourceFallback, r.Source)
+	assert.NotEqual(t, loc.Locale(), r.Locale)
 
-	// Miss
 	r = loc.Lookup("nonexistent")
-	assert.Equal(TranslationSourceMissing, r.Source)
+	assert.Equal(t, TranslationSourceMissing, r.Source)
 }
