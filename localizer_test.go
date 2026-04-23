@@ -277,6 +277,51 @@ func TestMessageFormatOptions(t *testing.T) {
 	assert.Equal(t, "Hello, World!", result)
 }
 
+func TestFormatRespectsStrictMessageFormatOptions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		options *mf.MessageFormatOptions
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "default mode passes unknown formatter through",
+			want: "World",
+		},
+		{
+			name:    "strict mode rejects unknown formatter",
+			options: &mf.MessageFormatOptions{Strict: true},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			options := []Option{WithDefaultLocale("en")}
+			if tt.options != nil {
+				options = append(options, WithMessageFormatOptions(tt.options))
+			}
+
+			bundle := NewBundle(options...)
+			localizer := bundle.NewLocalizer("en")
+			result, err := localizer.Format("{name, upper}", Vars{"name": "World"})
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "compile message")
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
 func TestLocalizeWithoutVars(t *testing.T) {
 	t.Parallel()
 
