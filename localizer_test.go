@@ -330,10 +330,14 @@ func TestLocalizeWithoutVars(t *testing.T) {
 		WithLocales("en"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
-		"en": {"hello": "Hello, {name}!"},
+		"en": {
+			"plain": "Hello, world!",
+			"hello": "Hello, {name}!",
+		},
 	}))
 
 	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "Hello, world!", loc.Get("plain"))
 	assert.Equal(t, "Hello, {name}!", loc.Get("hello"))
 }
 

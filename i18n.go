@@ -385,11 +385,7 @@ func (i *I18n) lookupFallback(locale, name string, visited map[string]struct{}) 
 	}
 	visited[locale] = struct{}{}
 
-	chain, ok := i.fallbacks[locale]
-	if !ok {
-		return i.parsedTranslations[i.defaultLocale][name]
-	}
-	for _, fb := range chain {
+	for _, fb := range i.fallbacks[locale] {
 		if v, ok := i.parsedTranslations[fb][name]; ok {
 			return v
 		}
