@@ -404,6 +404,20 @@ func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 	assert.Equal(t, "{count, plural, =0 {no items} one {# item} other {# items}}", loc.Get("items", Vars{"count": "oops"}))
 }
 
+func TestLocalizeFallsBackToRawTextOnNonStringResult(t *testing.T) {
+	t.Parallel()
+
+	loc := &Localizer{}
+	translation := &parsedTranslation{
+		text: "{name, words}",
+		format: func(params any) (any, error) {
+			return []string{"one", "two"}, nil
+		},
+	}
+
+	assert.Equal(t, "{name, words}", loc.localize(translation, Vars{"name": "ignored"}))
+}
+
 func TestGetCachesRuntimeFallbackByBehavior(t *testing.T) {
 	t.Parallel()
 

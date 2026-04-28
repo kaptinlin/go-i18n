@@ -59,14 +59,20 @@ func (l *Localizer) resolve(name string) (*parsedTranslation, bool) {
 
 func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 	params := varsToParams(data)
-	if pt.format != nil && params != nil {
-		if result, err := pt.format(params); err == nil {
-			if str, ok := result.(string); ok {
-				return str
-			}
-		}
+	if pt.format == nil || params == nil {
+		return pt.text
 	}
-	return pt.text
+
+	result, err := pt.format(params)
+	if err != nil {
+		return pt.text
+	}
+
+	str, ok := result.(string)
+	if !ok {
+		return pt.text
+	}
+	return str
 }
 
 // Format compiles and formats a MessageFormat message directly.
