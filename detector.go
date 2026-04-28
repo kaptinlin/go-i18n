@@ -1,6 +1,9 @@
 package i18n
 
-import "net/http"
+import (
+	"net/http"
+	"slices"
+)
 
 // DetectorSource identifies a request input that can supply a locale.
 type DetectorSource string
@@ -50,12 +53,9 @@ func WithDetectorPriority(priority ...DetectorSource) DetectorOption {
 			return
 		}
 
-		sanitized := make([]DetectorSource, 0, len(priority))
-		for _, source := range priority {
-			if source.isValid() {
-				sanitized = append(sanitized, source)
-			}
-		}
+		sanitized := slices.DeleteFunc(slices.Clone(priority), func(source DetectorSource) bool {
+			return !source.isValid()
+		})
 		if len(sanitized) == 0 {
 			return
 		}

@@ -293,8 +293,9 @@ func (i *I18n) NewLocalizer(locales ...string) *Localizer {
 // trimContext removes the trailing context suffix (e.g., " <verb>") from a
 // translation key, returning the base key.
 func trimContext(v string) string {
-	if idx := strings.LastIndex(v, " <"); idx != -1 && strings.HasSuffix(v, ">") {
-		return v[:idx]
+	trimmed, ok := strings.CutSuffix(v, ">")
+	if idx := strings.LastIndex(trimmed, " <"); ok && idx != -1 {
+		return trimmed[:idx]
 	}
 	return v
 }
