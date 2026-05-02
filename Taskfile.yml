@@ -155,11 +155,6 @@ tasks:
 
         exit "$status"
 
-  markdownlint:
-    desc: Run markdownlint
-    cmds:
-      - npx --yes markdownlint-cli2 "**/*.md"
-
   yamllint:
     desc: Run yamllint
     cmds:

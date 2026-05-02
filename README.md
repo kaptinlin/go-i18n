@@ -203,14 +203,14 @@ task bench
 task fmt
 task vet
 task lint
-task markdownlint
+
 task verify
 ```
 
 ## Contributing
 
 - Keep examples runnable and user-facing.
-- Run `task fmt`, `task vet`, `task lint`, `task test`, and `task markdownlint` before shipping changes.
+- Run `task fmt`, `task vet`, `task lint`, `task test` before shipping changes.
 - Keep `README.md`, `CLAUDE.md`, and [SPECS/00-overview.md](SPECS/00-overview.md) aligned when public behavior changes.
 
 ## License

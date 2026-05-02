@@ -258,6 +258,17 @@ func TestFormatMethod(t *testing.T) {
 	assert.Equal(t, "5 items", result4)
 }
 
+func TestFormatSelectMessage(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(WithDefaultLocale("en"))
+	localizer := bundle.NewLocalizer("en")
+
+	result, err := localizer.Format("{gender, select, female {She} male {He} other {They}} liked this.", Vars{"gender": "female"})
+	require.NoError(t, err)
+	assert.Equal(t, "She liked this.", result)
+}
+
 func TestMessageFormatOptions(t *testing.T) {
 	t.Parallel()
 
