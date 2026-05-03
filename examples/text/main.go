@@ -12,7 +12,7 @@ func main() {
 		i18n.WithLocales("en", "zh-Hans"),
 	)
 
-	err := bundle.LoadMessages(map[string]map[string]string{
+	if err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"Hello world":   "Hello world",
 			"Hello, {name}": "Hello, {name}",
@@ -23,8 +23,7 @@ func main() {
 			"Hello, {name}": "你好, {name}",
 			"Hello, %s":     "你好, %s",
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		fmt.Println(err)
 	}
 

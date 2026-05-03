@@ -150,9 +150,8 @@ func NewBundle(options ...Option) *I18n {
 		o(i)
 	}
 	if i.defaultLanguage == language.Und {
-		if len(i.languages) == 0 {
-			i.defaultLanguage = language.English
-		} else {
+		i.defaultLanguage = language.English
+		if len(i.languages) > 0 {
 			i.defaultLanguage = i.languages[0]
 		}
 		i.defaultLocale = i.defaultLanguage.String()
@@ -293,9 +292,6 @@ func trimContext(v string) string {
 	return v
 }
 
-// parseTranslation compiles a translation text into a parsedTranslation.
-// Returns [ErrMessageFormatCompilation] if MessageFormat compilation fails,
-// along with a parsedTranslation that contains the raw text (usable without formatting).
 func (i *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, error) {
 	pt := &parsedTranslation{
 		name:   name,

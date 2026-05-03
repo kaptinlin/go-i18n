@@ -42,50 +42,23 @@ func main() {
 	}
 
 	localizer := bundle.NewLocalizer("en")
+	print := func(key string, vars i18n.Vars) {
+		fmt.Println(localizer.Get(key, vars))
+	}
 
-	fmt.Println(localizer.Get("message_basic", i18n.Vars{
-		"count": 1,
-	}))
-	fmt.Println(localizer.Get("message_basic", i18n.Vars{
-		"count": 2,
-	}))
-	fmt.Println(localizer.Get("message_with_number", i18n.Vars{
-		"count": 0,
-	}))
-	fmt.Println(localizer.Get("message_with_number", i18n.Vars{
-		"count": 1,
-	}))
-	fmt.Println(localizer.Get("message_with_number", i18n.Vars{
-		"count": 2,
-	}))
-	fmt.Println(localizer.Get("message_with_multiline", i18n.Vars{
-		"count": 0,
-	}))
-	fmt.Println(localizer.Get("message_with_multiline", i18n.Vars{
-		"count": 1,
-	}))
-	fmt.Println(localizer.Get("message_with_multiline", i18n.Vars{
-		"count": 2,
-	}))
-	fmt.Println(localizer.Get("message_with_select", i18n.Vars{
-		"gender": "male",
-	}))
-	fmt.Println(localizer.Get("message_with_select", i18n.Vars{
-		"gender": "female",
-	}))
-	fmt.Println(localizer.Get("message_with_select", i18n.Vars{
-		"gender": "other",
-	}))
-	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
-		"floor": 1,
-	}))
-	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
-		"floor": 2,
-	}))
-	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
-		"floor": 3,
-	}))
-	fmt.Println(localizer.Get("message_with_ordinal", i18n.Vars{
-		"floor": 4,
-	}))
+	print("message_basic", i18n.Vars{"count": 1})
+	print("message_basic", i18n.Vars{"count": 2})
+	print("message_with_number", i18n.Vars{"count": 0})
+	print("message_with_number", i18n.Vars{"count": 1})
+	print("message_with_number", i18n.Vars{"count": 2})
+	print("message_with_multiline", i18n.Vars{"count": 0})
+	print("message_with_multiline", i18n.Vars{"count": 1})
+	print("message_with_multiline", i18n.Vars{"count": 2})
+	print("message_with_select", i18n.Vars{"gender": "male"})
+	print("message_with_select", i18n.Vars{"gender": "female"})
+	print("message_with_select", i18n.Vars{"gender": "other"})
+	print("message_with_ordinal", i18n.Vars{"floor": 1})
+	print("message_with_ordinal", i18n.Vars{"floor": 2})
+	print("message_with_ordinal", i18n.Vars{"floor": 3})
+	print("message_with_ordinal", i18n.Vars{"floor": 4})
 }

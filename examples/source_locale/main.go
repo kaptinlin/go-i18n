@@ -42,24 +42,10 @@ func main() {
 	fmt.Println("\n=== Detecting Fallback vs Direct Hit ===")
 
 	r = localizer.Lookup("hello", i18n.Vars{"name": "World"})
-	switch r.Source {
-	case i18n.TranslationSourceMissing:
-		fmt.Printf("  %q: NOT FOUND\n", "hello")
-	case i18n.TranslationSourceFallback:
-		fmt.Printf("  %q: fallback from %s\n", "hello", r.Locale)
-	case i18n.TranslationSourceDirect:
-		fmt.Printf("  %q: direct hit in %s\n", "hello", r.Locale)
-	}
+	printSource("hello", r)
 
 	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
-	switch r.Source {
-	case i18n.TranslationSourceMissing:
-		fmt.Printf("  %q: NOT FOUND\n", "goodbye")
-	case i18n.TranslationSourceFallback:
-		fmt.Printf("  %q: fallback from %s\n", "goodbye", r.Locale)
-	case i18n.TranslationSourceDirect:
-		fmt.Printf("  %q: direct hit in %s\n", "goodbye", r.Locale)
-	}
+	printSource("goodbye", r)
 
 	fmt.Println("\n=== Context Disambiguation ===")
 
@@ -86,4 +72,15 @@ func printResult(key string, r i18n.TranslationResult) {
 	fmt.Printf("  Locale: %q\n", r.Locale)
 	fmt.Printf("  Source: %q\n", r.Source)
 	fmt.Println()
+}
+
+func printSource(key string, r i18n.TranslationResult) {
+	switch r.Source {
+	case i18n.TranslationSourceMissing:
+		fmt.Printf("  %q: NOT FOUND\n", key)
+	case i18n.TranslationSourceFallback:
+		fmt.Printf("  %q: fallback from %s\n", key, r.Locale)
+	case i18n.TranslationSourceDirect:
+		fmt.Printf("  %q: direct hit in %s\n", key, r.Locale)
+	}
 }

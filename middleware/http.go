@@ -17,9 +17,10 @@ type config struct {
 // WithDetector sets a custom detector.
 func WithDetector(detector *i18n.Detector) Option {
 	return func(cfg *config) {
-		if detector != nil {
-			cfg.detector = detector
+		if detector == nil {
+			return
 		}
+		cfg.detector = detector
 	}
 }
 
@@ -32,8 +33,7 @@ func HTTPMiddleware(bundle *i18n.I18n, opts ...Option) func(http.Handler) http.H
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			locale := cfg.detector.DetectLocale(r)
-			localizer := bundle.NewLocalizer(locale)
+			localizer := bundle.NewLocalizer(cfg.detector.DetectLocale(r))
 			ctx := i18n.ContextWithLocalizer(r.Context(), localizer)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

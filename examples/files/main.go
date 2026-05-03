@@ -12,8 +12,7 @@ func main() {
 		i18n.WithLocales("en", "zh-Hans"),
 	)
 
-	err := bundle.LoadFiles("./locales/zh-Hans.json", "./locales/en.json")
-	if err != nil {
+	if err := bundle.LoadFiles("./locales/zh-Hans.json", "./locales/en.json"); err != nil {
 		fmt.Println(err)
 	}
 
