@@ -109,9 +109,8 @@ func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
 			return
 		}
 
-		cloned := *opts
-		cloned.CustomFormatters = maps.Clone(opts.CustomFormatters)
-		i.mfOptions = &cloned
+		i.mfOptions = new(*opts)
+		i.mfOptions.CustomFormatters = maps.Clone(opts.CustomFormatters)
 	}
 }
 
