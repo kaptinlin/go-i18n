@@ -360,28 +360,36 @@ func (i *I18n) formatFallbacks() {
 			if _, ok := trans[defTrans.name]; ok {
 				continue
 			}
-			if best := i.lookupFallback(locale, defTrans.name, make(map[string]struct{})); best != nil {
+			if best := i.lookupFallback(locale, defTrans.name); best != nil {
 				i.parsedTranslations[locale][defTrans.name] = best
 			}
 		}
 	}
 }
 
-// lookupFallback recursively searches the fallback chain for a translation.
-// The visited set prevents infinite recursion from circular fallback configs.
-func (i *I18n) lookupFallback(locale, name string, visited map[string]struct{}) *parsedTranslation {
-	if _, ok := visited[locale]; ok {
+// lookupFallback searches configured fallback chains before the default locale.
+func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
+	visited := make(map[string]struct{})
+	var search func(string) *parsedTranslation
+	search = func(locale string) *parsedTranslation {
+		if _, ok := visited[locale]; ok {
+			return nil
+		}
+		visited[locale] = struct{}{}
+
+		for _, fb := range i.fallbacks[locale] {
+			if pt, ok := i.parsedTranslations[fb][name]; ok {
+				return pt
+			}
+			if found := search(fb); found != nil {
+				return found
+			}
+		}
 		return nil
 	}
-	visited[locale] = struct{}{}
 
-	for _, fb := range i.fallbacks[locale] {
-		if v, ok := i.parsedTranslations[fb][name]; ok {
-			return v
-		}
-		if found := i.lookupFallback(fb, name, visited); found != nil {
-			return found
-		}
+	if found := search(locale); found != nil {
+		return found
 	}
 	return i.parsedTranslations[i.defaultLocale][name]
 }

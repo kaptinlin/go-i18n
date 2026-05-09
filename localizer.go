@@ -62,14 +62,12 @@ func (l *Localizer) resolve(name string) (*parsedTranslation, bool) {
 
 func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 	params := varsToParams(data)
-	if pt.format == nil || params == nil {
-		return pt.text
-	}
-
-	result, err := pt.format(params)
-	if err == nil {
-		if str, ok := result.(string); ok {
-			return str
+	if pt.format != nil && params != nil {
+		result, err := pt.format(params)
+		if err == nil {
+			if str, ok := result.(string); ok {
+				return str
+			}
 		}
 	}
 	return pt.text
