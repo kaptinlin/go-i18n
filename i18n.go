@@ -14,11 +14,9 @@ import (
 	"golang.org/x/text/language"
 )
 
-var (
-	// ErrMessageFormatCompilation indicates that MessageFormat template compilation failed.
-	// The translation text is returned as-is without formatting capabilities.
-	ErrMessageFormatCompilation = errors.New("messageformat compilation failed")
-)
+// ErrMessageFormatCompilation indicates that MessageFormat template compilation failed.
+// The translation text is returned as-is without formatting capabilities.
+var ErrMessageFormatCompilation = errors.New("messageformat compilation failed")
 
 // Unmarshaler unmarshals translation files. Common implementations include
 // json.Unmarshal, yaml.Unmarshal, and toml.Unmarshal.
@@ -367,7 +365,6 @@ func (i *I18n) formatFallbacks() {
 	}
 }
 
-// lookupFallback searches configured fallback chains before the default locale.
 func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 	visited := make(map[string]struct{})
 	var search func(string) *parsedTranslation

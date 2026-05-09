@@ -33,5 +33,5 @@ func main() {
 	fmt.Println(localizer.Get("hello_name", i18n.Vars{
 		"name": "John",
 	}))
-	fmt.Println(fmt.Sprintf(localizer.Get("hello_string"), "Alice"))
+	fmt.Printf(localizer.Get("hello_string")+"\n", "Alice")
 }

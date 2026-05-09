@@ -12,7 +12,7 @@ func main() {
 		i18n.WithLocales("en", "zh-Hans"),
 	)
 
-	err := bundle.LoadMessages(map[string]map[string]string{
+	if err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"hello":   "Hello, {name}!",
 			"goodbye": "Goodbye, {name}!",
@@ -21,8 +21,7 @@ func main() {
 			// "goodbye" is omitted to demonstrate default-locale fallback.
 			"hello": "你好，{name}！",
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		panic(err)
 	}
 
@@ -49,13 +48,12 @@ func main() {
 
 	fmt.Println("\n=== Context Disambiguation ===")
 
-	err = bundle.LoadMessages(map[string]map[string]string{
+	if err := bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {
 			"Post <verb>": "发布文章",
 			"Post <noun>": "文章",
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		panic(err)
 	}
 
