@@ -21,7 +21,12 @@ func unmarshalINI(data []byte, v any) error {
 		return err
 	}
 
-	m := *v.(*map[string]string)
+	out := v.(*map[string]string)
+	m := *out
+	if m == nil {
+		m = make(map[string]string)
+		*out = m
+	}
 
 	// Flatten section prefixes once so lookups can use the final dotted keys directly.
 	for _, section := range f.Sections() {

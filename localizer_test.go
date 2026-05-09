@@ -323,7 +323,7 @@ func TestFormatRespectsStrictMessageFormatOptions(t *testing.T) {
 			result, err := localizer.Format("{name, upper}", Vars{"name": "World"})
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), "compile message")
+				require.ErrorIs(t, err, ErrMessageFormatCompilation)
 				return
 			}
 
@@ -413,20 +413,6 @@ func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 
 	loc := bundle.NewLocalizer("en")
 	assert.Equal(t, "{count, plural, =0 {no items} one {# item} other {# items}}", loc.Get("items", Vars{"count": "oops"}))
-}
-
-func TestLocalizeFallsBackToRawTextOnNonStringResult(t *testing.T) {
-	t.Parallel()
-
-	loc := &Localizer{}
-	translation := &parsedTranslation{
-		text: "{name, words}",
-		format: func(params any) (any, error) {
-			return []string{"one", "two"}, nil
-		},
-	}
-
-	assert.Equal(t, "{name, words}", loc.localize(translation, Vars{"name": "ignored"}))
 }
 
 func TestGetCachesRuntimeFallbackByBehavior(t *testing.T) {

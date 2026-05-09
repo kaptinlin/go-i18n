@@ -92,7 +92,7 @@ func (l *Localizer) Format(message string, data ...Vars) (string, error) {
 
 	compiled, err := formatter.Compile(message)
 	if err != nil {
-		return "", fmt.Errorf("compile message: %w", err)
+		return "", fmt.Errorf("%w: compile message: %w", ErrMessageFormatCompilation, err)
 	}
 
 	params := varsToParams(data)
