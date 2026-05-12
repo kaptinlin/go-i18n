@@ -17,7 +17,7 @@ For internal contracts and design rules, start with [SPECS/00-overview.md](SPECS
 
 ## Installation
 
-Requires Go 1.26+.
+Requires the Go version declared in `go.mod`.
 
 ```bash
 go get github.com/kaptinlin/go-i18n@latest

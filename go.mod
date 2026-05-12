@@ -1,6 +1,6 @@
 module github.com/kaptinlin/go-i18n
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/go-json-experiment/json v0.0.0-20260505212615-e40f80bf6836
@@ -9,7 +9,7 @@ require (
 	github.com/kaptinlin/messageformat-go v0.6.4
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/text v0.36.0
+	golang.org/x/text v0.37.0
 	gopkg.in/ini.v1 v1.67.2
 )
 
