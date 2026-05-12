@@ -495,6 +495,31 @@ func TestFallbackChainUsesLaterConfiguredFallbackBeforeDefault(t *testing.T) {
 	assert.Equal(t, "Default only", localizer.Get("default_only"))
 }
 
+func TestLookupFallbackIgnoresInheritedDefaultBeforeLaterFallback(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
+		WithFallback(map[string][]string{
+			"ja-JP": {"ko-KR", "zh-Hans"},
+		}),
+	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"shared": "English"},
+		"ja-JP":   {},
+		"ko-KR":   {},
+		"zh-Hans": {"shared": "中文"},
+	}))
+	bundle.parsedTranslations["ko-KR"]["shared"] = bundle.parsedTranslations["en"]["shared"]
+
+	fallback := bundle.lookupFallback("ja-JP", "shared")
+	if assert.NotNil(t, fallback) {
+		assert.Equal(t, "zh-Hans", fallback.locale)
+		assert.Equal(t, "中文", fallback.text)
+	}
+}
+
 func TestLookupInvalidMessageFormat(t *testing.T) {
 	t.Parallel()
 

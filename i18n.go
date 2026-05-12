@@ -375,7 +375,7 @@ func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 		visited[locale] = struct{}{}
 
 		for _, fb := range i.fallbacks[locale] {
-			if pt, ok := i.parsedTranslations[fb][name]; ok {
+			if pt, ok := i.directTranslations[fb][name]; ok {
 				return pt
 			}
 			if found := search(fb); found != nil {
