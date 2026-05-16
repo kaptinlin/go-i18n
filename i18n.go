@@ -369,8 +369,8 @@ func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 	fallbacks := i.fallbacks[locale]
 	visited := map[string]struct{}{locale: {}}
 	stack := make([]string, 0, len(fallbacks))
-	for idx := len(fallbacks) - 1; idx >= 0; idx-- {
-		stack = append(stack, fallbacks[idx])
+	for _, fallback := range slices.Backward(fallbacks) {
+		stack = append(stack, fallback)
 	}
 
 	for len(stack) > 0 {
@@ -385,8 +385,8 @@ func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 			return pt
 		}
 		fallbacks = i.fallbacks[locale]
-		for idx := len(fallbacks) - 1; idx >= 0; idx-- {
-			stack = append(stack, fallbacks[idx])
+		for _, fallback := range slices.Backward(fallbacks) {
+			stack = append(stack, fallback)
 		}
 	}
 
