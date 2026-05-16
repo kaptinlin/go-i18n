@@ -366,27 +366,29 @@ func (i *I18n) formatFallbacks() {
 }
 
 func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
-	visited := make(map[string]struct{})
-	var search func(string) *parsedTranslation
-	search = func(locale string) *parsedTranslation {
+	fallbacks := i.fallbacks[locale]
+	visited := map[string]struct{}{locale: {}}
+	stack := make([]string, 0, len(fallbacks))
+	for idx := len(fallbacks) - 1; idx >= 0; idx-- {
+		stack = append(stack, fallbacks[idx])
+	}
+
+	for len(stack) > 0 {
+		locale := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
 		if _, ok := visited[locale]; ok {
-			return nil
+			continue
 		}
 		visited[locale] = struct{}{}
 
-		for _, fb := range i.fallbacks[locale] {
-			if pt, ok := i.directTranslations[fb][name]; ok {
-				return pt
-			}
-			if found := search(fb); found != nil {
-				return found
-			}
+		if pt, ok := i.directTranslations[locale][name]; ok {
+			return pt
 		}
-		return nil
+		fallbacks = i.fallbacks[locale]
+		for idx := len(fallbacks) - 1; idx >= 0; idx-- {
+			stack = append(stack, fallbacks[idx])
+		}
 	}
 
-	if found := search(locale); found != nil {
-		return found
-	}
 	return i.parsedTranslations[i.defaultLocale][name]
 }
