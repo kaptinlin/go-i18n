@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"io/fs"
 
 	"github.com/kaptinlin/go-i18n"
 )
@@ -11,12 +12,16 @@ import (
 var localesFs embed.FS
 
 func main() {
+	run(localesFs, "locales/*.json")
+}
+
+func run(fsys fs.FS, patterns ...string) {
 	bundle := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
 
-	if err := bundle.LoadFS(localesFs, "locales/*.json"); err != nil {
+	if err := bundle.LoadFS(fsys, patterns...); err != nil {
 		fmt.Println(err)
 	}
 

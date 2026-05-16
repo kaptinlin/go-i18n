@@ -7,12 +7,16 @@ import (
 )
 
 func main() {
+	run("./locales/zh-Hans.json", "./locales/en.json")
+}
+
+func run(files ...string) {
 	bundle := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
 
-	if err := bundle.LoadFiles("./locales/zh-Hans.json", "./locales/en.json"); err != nil {
+	if err := bundle.LoadFiles(files...); err != nil {
 		fmt.Println(err)
 	}
 
