@@ -67,6 +67,26 @@ func TestDetectorDetectLocale(t *testing.T) {
 			want:     "ja-JP",
 		},
 		{
+			name:     "empty query parameter name skips query value",
+			detector: NewDetector(bundle, WithDetectorQueryParam("")),
+			request: func() *http.Request {
+				r := httptestNewRequest(t, "GET", "/?lang=ja")
+				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+				return r
+			}(),
+			want: "zh-Hans",
+		},
+		{
+			name:     "empty priority keeps default source order",
+			detector: NewDetector(bundle, WithDetectorPriority()),
+			request: func() *http.Request {
+				r := httptestNewRequest(t, "GET", "/?lang=ja")
+				r.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+				return r
+			}(),
+			want: "ja-JP",
+		},
+		{
 			name:     "falls back to default locale when no source matches",
 			detector: NewDetector(bundle),
 			request:  httptestNewRequest(t, "GET", "/"),

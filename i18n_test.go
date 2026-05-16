@@ -196,6 +196,24 @@ func TestWithCustomFormattersClonesInput(t *testing.T) {
 	assert.Equal(t, "Hello, ORIGINAL!", result)
 }
 
+func TestWithMessageFormatOptionsNilClearsPreviousOptions(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithCustomFormatters(map[string]any{
+			"upper": func(value any, locale string, arg *string) any {
+				return "CUSTOM"
+			},
+		}),
+		WithMessageFormatOptions(nil),
+	)
+
+	result, err := bundle.NewLocalizer("en").Format("{name, upper}", Vars{"name": "World"})
+	assert.NoError(t, err)
+	assert.Equal(t, "World", result)
+}
+
 func TestHas(t *testing.T) {
 	t.Parallel()
 
@@ -212,6 +230,8 @@ func TestHas(t *testing.T) {
 	assert.True(t, bundle.Has("zh-Hans", "hello"))
 	assert.False(t, bundle.Has("zh-CN", "fallback"))
 	assert.False(t, bundle.Has("zh-Hans", "missing"))
+	assert.False(t, bundle.Has("", "hello"))
+	assert.False(t, bundle.Has("???invalid???", "hello"))
 	assert.False(t, bundle.Has("af", "hello"))
 }
 
@@ -272,6 +292,8 @@ func TestKeys(t *testing.T) {
 		t.Errorf("keys for zh-CN mismatch (-want +got):\n%s", diff)
 	}
 	assert.Nil(t, bundle.Keys("ja-JP"))
+	assert.Nil(t, bundle.Keys(""))
+	assert.Nil(t, bundle.Keys("???invalid???"))
 	assert.Nil(t, bundle.Keys("af"))
 }
 
@@ -517,7 +539,7 @@ func TestFallbackChainUsesLaterConfiguredFallbackBeforeDefault(t *testing.T) {
 	assert.Equal(t, "Default only", localizer.Get("default_only"))
 }
 
-func TestLookupFallbackIgnoresInheritedDefaultBeforeLaterFallback(t *testing.T) {
+func TestLookupFallbackChainReportsConfiguredLocaleBeforeDefault(t *testing.T) {
 	t.Parallel()
 
 	bundle := NewBundle(
@@ -528,18 +550,26 @@ func TestLookupFallbackIgnoresInheritedDefaultBeforeLaterFallback(t *testing.T) 
 		}),
 	)
 	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
-		"en":      {"shared": "English"},
+		"en": {
+			"shared":       "English",
+			"default_only": "Default only",
+		},
 		"ja-JP":   {},
 		"ko-KR":   {},
 		"zh-Hans": {"shared": "中文"},
 	}))
-	bundle.parsedTranslations["ko-KR"]["shared"] = bundle.parsedTranslations["en"]["shared"]
 
-	fallback := bundle.lookupFallback("ja-JP", "shared")
-	if assert.NotNil(t, fallback) {
-		assert.Equal(t, "zh-Hans", fallback.locale)
-		assert.Equal(t, "中文", fallback.text)
-	}
+	localizer := bundle.NewLocalizer("ja-JP")
+
+	configured := localizer.Lookup("shared")
+	assert.Equal(t, "中文", configured.Text)
+	assert.Equal(t, "zh-Hans", configured.Locale)
+	assert.Equal(t, TranslationSourceFallback, configured.Source)
+
+	defaulted := localizer.Lookup("default_only")
+	assert.Equal(t, "Default only", defaulted.Text)
+	assert.Equal(t, "en", defaulted.Locale)
+	assert.Equal(t, TranslationSourceFallback, defaulted.Source)
 }
 
 func TestLookupInvalidMessageFormat(t *testing.T) {
