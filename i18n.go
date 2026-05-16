@@ -266,17 +266,16 @@ func (i *I18n) IsLanguageSupported(lang language.Tag) bool {
 // NewLocalizer creates a Localizer for the first matching locale from
 // locales. If none match, the default locale is used.
 func (i *I18n) NewLocalizer(locales ...string) *Localizer {
+	locale := i.defaultLocale
 	for _, loc := range locales {
 		if matched, ok := i.resolveLocalizedLocale(loc); ok {
-			return &Localizer{
-				bundle: i,
-				locale: matched,
-			}
+			locale = matched
+			break
 		}
 	}
 	return &Localizer{
 		bundle: i,
-		locale: i.defaultLocale,
+		locale: locale,
 	}
 }
 
@@ -284,7 +283,10 @@ func (i *I18n) NewLocalizer(locales ...string) *Localizer {
 // translation key, returning the base key.
 func trimContext(v string) string {
 	trimmed, ok := strings.CutSuffix(v, ">")
-	if idx := strings.LastIndex(trimmed, " <"); ok && idx != -1 {
+	if !ok {
+		return v
+	}
+	if idx := strings.LastIndex(trimmed, " <"); idx != -1 {
 		return trimmed[:idx]
 	}
 	return v

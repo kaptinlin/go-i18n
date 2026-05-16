@@ -432,6 +432,17 @@ func TestNewLocalizerUsesLocaleMatchingForLoadedTranslations(t *testing.T) {
 	assert.Equal(t, "你好", loc.Get("hello"))
 }
 
+func TestRuntimeFallbackTrimsOnlyContextSuffix(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(WithDefaultLocale("en"), WithLocales("en"))
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{"en": {}}))
+	localizer := bundle.NewLocalizer("en")
+
+	assert.Equal(t, "Post", localizer.Get("Post <verb>"))
+	assert.Equal(t, "Post <verb", localizer.Get("Post <verb"))
+}
+
 func TestNewBundleDefaultLocaleFromLocales(t *testing.T) {
 	t.Parallel()
 
