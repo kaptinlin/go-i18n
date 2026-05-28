@@ -368,7 +368,18 @@ func TestFormatCompileError(t *testing.T) {
 	bundle := NewBundle(WithDefaultLocale("en"))
 	loc := bundle.NewLocalizer("en")
 
-	_, err := loc.Format("{count, plural, }")
+	_, err := loc.Format("{invalid syntax")
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrMessageFormatCompilation)
+}
+
+func TestFormatReturnsRuntimeError(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(WithDefaultLocale("en"))
+	loc := bundle.NewLocalizer("en")
+
+	_, err := loc.Format("{count, plural, one {# item} other {# items}}", Vars{"count": "oops"})
 	require.Error(t, err)
 }
 
@@ -398,6 +409,20 @@ func TestFormatStringerFallbackForNonStringResult(t *testing.T) {
 	result, err := loc.Format("{name, countWords}", Vars{"name": "ignored"})
 	require.NoError(t, err)
 	assert.Equal(t, "[one two]", result)
+}
+
+func TestFormatStringifiesValueReturnType(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithMessageFormatOptions(&mf.MessageFormatOptions{ReturnType: mf.ReturnTypeValues}),
+	)
+	loc := bundle.NewLocalizer("en")
+
+	result, err := loc.Format("Hello {name}!", Vars{"name": "Ada"})
+	require.NoError(t, err)
+	assert.Equal(t, "[Hello  Ada !]", result)
 }
 
 func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {

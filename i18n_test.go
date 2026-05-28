@@ -297,6 +297,26 @@ func TestKeys(t *testing.T) {
 	assert.Nil(t, bundle.Keys("af"))
 }
 
+func TestDirectLocaleIntrospectionMatchesRegionalLocale(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en-US"),
+		WithLocales("en-US", "fr-FR"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en-US": {"hello": "Hello", "bye": "Goodbye"},
+	})
+	assert.NoError(t, err)
+
+	assert.True(t, bundle.Has("en-AU", "hello"))
+	if diff := cmp.Diff([]string{"bye", "hello"}, bundle.Keys("en-AU")); diff != "" {
+		t.Errorf("keys for en-AU mismatch (-want +got):\n%s", diff)
+	}
+	assert.False(t, bundle.Has("fr-CA", "hello"))
+	assert.Nil(t, bundle.Keys("fr-CA"))
+}
+
 func TestKeysDoNotFallBackToDefaultForMatchedLocaleWithoutDirectTranslations(t *testing.T) {
 	t.Parallel()
 
@@ -441,6 +461,23 @@ func TestRuntimeFallbackTrimsOnlyContextSuffix(t *testing.T) {
 
 	assert.Equal(t, "Post", localizer.Get("Post <verb>"))
 	assert.Equal(t, "Post <verb", localizer.Get("Post <verb"))
+	assert.Equal(t, "literal>", localizer.Get("literal>"))
+}
+
+func TestNewLocalizerFallsBackToDefaultWhenRegionalMatchIsUnloaded(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en-US"),
+		WithLocales("en-US", "fr-FR"),
+	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en-US": {"hello": "Hello"},
+	}))
+
+	loc := bundle.NewLocalizer("fr-CA")
+	assert.Equal(t, "en-US", loc.Locale())
+	assert.Equal(t, "Hello", loc.Get("hello"))
 }
 
 func TestNewBundleDefaultLocaleFromLocales(t *testing.T) {
