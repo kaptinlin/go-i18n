@@ -67,10 +67,13 @@ func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 	}
 
 	result, err := pt.format(params)
-	if str, ok := result.(string); err == nil && ok {
+	if err != nil {
+		return pt.text
+	}
+	if str, ok := result.(string); ok {
 		return str
 	}
-	return pt.text
+	return fmt.Sprintf("%v", result)
 }
 
 // Format compiles and formats a MessageFormat message directly.

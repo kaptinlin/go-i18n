@@ -425,6 +425,22 @@ func TestFormatStringifiesValueReturnType(t *testing.T) {
 	assert.Equal(t, "[Hello  Ada !]", result)
 }
 
+func TestGetStringifiesValueReturnType(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+		WithMessageFormatOptions(&mf.MessageFormatOptions{ReturnType: mf.ReturnTypeValues}),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello {name}!"},
+	}))
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "[Hello  Ada !]", loc.Get("hello", Vars{"name": "Ada"}))
+}
+
 func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 	t.Parallel()
 
