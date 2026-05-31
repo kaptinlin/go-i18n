@@ -114,5 +114,17 @@ func varsToParams(vars []Vars) any {
 	if len(vars) == 0 {
 		return nil
 	}
-	return map[string]any(vars[0])
+	var params map[string]any
+	for _, v := range vars {
+		if v == nil {
+			continue
+		}
+		if params == nil {
+			params = make(map[string]any, len(v))
+		}
+		for key, value := range v {
+			params[key] = value
+		}
+	}
+	return params
 }

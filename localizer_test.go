@@ -332,6 +332,55 @@ func TestFormatRespectsStrictMessageFormatOptions(t *testing.T) {
 	}
 }
 
+func TestGetUsesAllProvidedVars(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"invite": "{sender} invited {recipient}."},
+	}))
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "Alice invited Bob.", loc.Get(
+		"invite",
+		Vars{"sender": "Alice"},
+		Vars{"recipient": "Bob"},
+	))
+}
+
+func TestFormatUsesAllProvidedVars(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(WithDefaultLocale("en"))
+	loc := bundle.NewLocalizer("en")
+
+	result, err := loc.Format(
+		"{sender} invited {recipient}.",
+		Vars{"sender": "Alice"},
+		Vars{"recipient": "Bob"},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "Alice invited Bob.", result)
+}
+
+func TestGetWithEmptyFirstVarsUsesLaterVars(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello, {name}!"},
+	}))
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "Hello, Ada!", loc.Get("hello", Vars{}, Vars{"name": "Ada"}))
+}
+
 func TestLocalizeWithoutVars(t *testing.T) {
 	t.Parallel()
 
