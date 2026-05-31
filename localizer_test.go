@@ -504,6 +504,19 @@ func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 	assert.Equal(t, "{count, plural, =0 {no items} one {# item} other {# items}}", loc.Get("items", Vars{"count": "oops"}))
 }
 
+func TestGetRuntimeFallbackReturnsRawTextForInvalidMessageFormat(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{"en": {}}))
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "{invalid syntax", loc.Get("{invalid syntax"))
+}
+
 func TestGetCachesRuntimeFallbackByBehavior(t *testing.T) {
 	t.Parallel()
 

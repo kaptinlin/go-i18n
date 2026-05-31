@@ -53,6 +53,9 @@ type parsedTranslation struct {
 // The default is JSON. Common alternatives include YAML, TOML, and INI.
 func WithUnmarshaler(u Unmarshaler) Option {
 	return func(i *I18n) {
+		if u == nil {
+			return
+		}
 		i.unmarshaler = u
 	}
 }
@@ -344,9 +347,18 @@ func (i *I18n) getRuntimeParsedTranslation(name string) *parsedTranslation {
 		return pt
 	}
 
-	pt, _ = i.parseTranslation(i.defaultLocale, name, trimContext(name))
+	pt = i.runtimeFallbackTranslation(name)
 	i.runtimeParsedTranslations[name] = pt
 	return pt
+}
+
+func (i *I18n) runtimeFallbackTranslation(name string) *parsedTranslation {
+	text := trimContext(name)
+	pt, err := i.parseTranslation(i.defaultLocale, name, text)
+	if err == nil {
+		return pt
+	}
+	return &parsedTranslation{locale: i.defaultLocale, name: name, text: text}
 }
 
 // formatFallbacks populates missing translations for each locale by looking up

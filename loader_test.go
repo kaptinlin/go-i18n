@@ -132,6 +132,21 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 	assert.ErrorIs(t, err, path.ErrBadPattern)
 }
 
+func TestWithUnmarshalerNilKeepsDefault(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("zh-Hans"),
+		WithLocales("zh-Hans"),
+		WithUnmarshaler(nil),
+	)
+
+	require.NoError(t, bundle.LoadFiles("test/zh-Hans.json"))
+
+	localizer := bundle.NewLocalizer("zh-Hans")
+	assert.Equal(t, "讯息 B", localizer.Get("message_b"))
+}
+
 func TestMergeTranslationUnmarshalError(t *testing.T) {
 	t.Parallel()
 
