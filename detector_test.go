@@ -172,6 +172,27 @@ func TestDetectorDetectLocale(t *testing.T) {
 	}
 }
 
+func TestDetectorDetectLocaleHandlesNilRequestInputs(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"hello": "Hello"},
+		"zh-Hans": {"hello": "你好"},
+	}))
+
+	detector := NewDetector(bundle)
+	assert.Equal(t, "en", detector.DetectLocale(nil))
+
+	request := &http.Request{Header: make(http.Header)}
+	request.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+
+	assert.Equal(t, "zh-Hans", detector.DetectLocale(request))
+}
+
 func TestDetectorExplicitLocaleFallsBackWhenMatchedLocaleHasNoLoadedTranslations(t *testing.T) {
 	t.Parallel()
 	bundle := NewBundle(

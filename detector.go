@@ -87,6 +87,10 @@ func WithDetectorHeaderName(name string) DetectorOption {
 
 // DetectLocale returns the best matching locale for r.
 func (d *Detector) DetectLocale(r *http.Request) string {
+	if r == nil {
+		return d.bundle.defaultLocale
+	}
+
 	for _, source := range d.priority {
 		switch source {
 		case DetectorSourceQuery:
@@ -111,7 +115,7 @@ func (d *Detector) DetectLocale(r *http.Request) string {
 }
 
 func (d *Detector) detectQuery(r *http.Request) string {
-	if d.queryParam == "" {
+	if d.queryParam == "" || r.URL == nil {
 		return ""
 	}
 	return d.resolveExplicitLocale(r.URL.Query().Get(d.queryParam))

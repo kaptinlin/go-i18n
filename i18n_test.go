@@ -587,6 +587,57 @@ func TestFallbackChainUsesLaterConfiguredFallbackBeforeDefault(t *testing.T) {
 	assert.Equal(t, "Default only", localizer.Get("default_only"))
 }
 
+func TestFallbackChainUsesConfiguredLocaleWhenDefaultLacksKey(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "ja-JP", "zh-Hans"),
+		WithFallback(map[string][]string{
+			"ja-JP": {"zh-Hans"},
+		}),
+	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":      {"default_only": "Default only"},
+		"ja-JP":   {},
+		"zh-Hans": {"regional": "你好，{name}!"},
+	}))
+
+	localizer := bundle.NewLocalizer("ja-JP")
+	result := localizer.Lookup("regional", Vars{"name": "Ada"})
+
+	assert.Equal(t, "你好，Ada!", result.Text)
+	assert.Equal(t, "zh-Hans", result.Locale)
+	assert.Equal(t, TranslationSourceFallback, result.Source)
+	assert.Equal(t, "Default only", localizer.Get("default_only"))
+}
+
+func TestFallbackChainRecomputesWhenFallbackLocaleLoadsLater(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "ja-JP", "zh-Hans"),
+		WithFallback(map[string][]string{
+			"ja-JP": {"zh-Hans"},
+		}),
+	)
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":    {"shared": "English"},
+		"ja-JP": {},
+	}))
+	assert.Equal(t, "English", bundle.NewLocalizer("ja-JP").Get("shared"))
+
+	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"zh-Hans": {"shared": "中文"},
+	}))
+
+	result := bundle.NewLocalizer("ja-JP").Lookup("shared")
+	assert.Equal(t, "中文", result.Text)
+	assert.Equal(t, "zh-Hans", result.Locale)
+	assert.Equal(t, TranslationSourceFallback, result.Source)
+}
+
 func TestLookupFallbackChainReportsConfiguredLocaleBeforeDefault(t *testing.T) {
 	t.Parallel()
 

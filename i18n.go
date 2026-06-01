@@ -364,19 +364,36 @@ func (i *I18n) runtimeFallbackTranslation(name string) *parsedTranslation {
 // formatFallbacks populates missing translations for each locale by looking up
 // the best available fallback from the configured fallback chain.
 func (i *I18n) formatFallbacks() {
-	for _, defTrans := range i.parsedTranslations[i.defaultLocale] {
-		for locale, trans := range i.parsedTranslations {
-			if locale == i.defaultLocale {
+	i.rebuildParsedTranslations()
+
+	names := make(map[string]struct{})
+	for _, translations := range i.directTranslations {
+		for name := range translations {
+			names[name] = struct{}{}
+		}
+	}
+
+	for locale, trans := range i.parsedTranslations {
+		if locale == i.defaultLocale {
+			continue
+		}
+		for name := range names {
+			if _, ok := trans[name]; ok {
 				continue
 			}
-			if _, ok := trans[defTrans.name]; ok {
-				continue
-			}
-			if best := i.lookupFallback(locale, defTrans.name); best != nil {
-				i.parsedTranslations[locale][defTrans.name] = best
+			if best := i.lookupFallback(locale, name); best != nil {
+				trans[name] = best
 			}
 		}
 	}
+}
+
+func (i *I18n) rebuildParsedTranslations() {
+	translations := make(map[string]map[string]*parsedTranslation, len(i.directTranslations))
+	for locale, direct := range i.directTranslations {
+		translations[locale] = maps.Clone(direct)
+	}
+	i.parsedTranslations = translations
 }
 
 func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
