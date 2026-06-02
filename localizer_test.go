@@ -400,6 +400,21 @@ func TestLocalizeWithoutVars(t *testing.T) {
 	assert.Equal(t, "Hello, {name}!", loc.Get("hello"))
 }
 
+func TestGetFormatsEscapedMessageWithoutVars(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"literal_placeholder": "Use '{count}' literally."},
+	}))
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "Use {count} literally.", loc.Get("literal_placeholder"))
+}
+
 func TestFormatNoVars(t *testing.T) {
 	t.Parallel()
 
