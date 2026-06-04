@@ -332,6 +332,35 @@ func TestFormatRespectsStrictMessageFormatOptions(t *testing.T) {
 	}
 }
 
+func TestFormatRespectsRequireAllArgumentsOption(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
+	)
+	loc := bundle.NewLocalizer("en")
+
+	_, err := loc.Format("Hello, {name}!")
+	require.Error(t, err)
+}
+
+func TestGetFallsBackToRawTextWhenRequiredArgumentIsMissing(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello, {name}!"},
+	}))
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "Hello, {name}!", loc.Get("hello"))
+}
+
 func TestGetUsesAllProvidedVars(t *testing.T) {
 	t.Parallel()
 
