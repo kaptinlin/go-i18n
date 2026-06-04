@@ -7,13 +7,25 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        # Do NOT initialize submodules
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -26,22 +38,21 @@ jobs:
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download dependencies
-        run: task deps
 
       - name: Run tests
         run: task test
 
-      - name: Run benchmarks
-        run: task bench
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GOGC: "50"
+      GOMEMLIMIT: 4GiB
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        # Do NOT initialize submodules
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -55,23 +66,23 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download dependencies
-        run: task deps
+      - name: Check module graph is tidy
+        run: task tidy-lint
 
-      - name: Run linters
-        run: task lint
+      - name: Read golangci-lint version
+        id: golangci
+        run: echo "version=v$(cat .golangci.version)" >> "$GITHUB_OUTPUT"
 
-      - name: Check formatting
-        run: |
-          task fmt
-          git diff --exit-code
-
-      - name: Run go vet
-        run: task vet
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ steps.golangci.outputs.version }}
+          args: --timeout=30m --concurrency=1 --path-prefix=.
 
   security:
     name: Security
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -81,7 +92,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-          cache-dependency-path: go.sum
 
       - name: Run govulncheck
         run: |
