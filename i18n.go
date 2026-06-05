@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/go-json-experiment/json"
-	mf "github.com/kaptinlin/messageformat-go/v1"
+	mf "github.com/kaptinlin/messageformat-go/mf1"
 	"golang.org/x/text/language"
 )
 

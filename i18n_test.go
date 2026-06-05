@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	mf "github.com/kaptinlin/messageformat-go/v1"
+	mf "github.com/kaptinlin/messageformat-go/mf1"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/text/language"

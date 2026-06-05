@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	mf "github.com/kaptinlin/messageformat-go/v1"
+	mf "github.com/kaptinlin/messageformat-go/mf1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
