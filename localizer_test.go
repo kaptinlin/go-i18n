@@ -221,6 +221,26 @@ func TestCustomFormatters(t *testing.T) {
 	assert.Equal(t, "Hello, WORLD!", result)
 }
 
+func TestLoadedTranslationsUseCustomFormatters(t *testing.T) {
+	t.Parallel()
+
+	bundle := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+		WithCustomFormatters(map[string]any{
+			"upper": func(value any, locale string, arg *string) any {
+				return strings.ToUpper(fmt.Sprintf("%v", value))
+			},
+		}),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello, {name, upper}!"},
+	}))
+
+	localizer := bundle.NewLocalizer("en")
+	assert.Equal(t, "Hello, WORLD!", localizer.Get("hello", Vars{"name": "world"}))
+}
+
 func TestStrictMode(t *testing.T) {
 	t.Parallel()
 

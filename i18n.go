@@ -1,8 +1,6 @@
 package i18n
 
 import (
-	"errors"
-	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
@@ -10,13 +8,8 @@ import (
 	"sync"
 
 	"github.com/go-json-experiment/json"
-	mf "github.com/kaptinlin/messageformat-go/mf1"
 	"golang.org/x/text/language"
 )
-
-// ErrMessageFormatCompilation indicates that MessageFormat template compilation failed.
-// The translation text is returned as-is without formatting capabilities.
-var ErrMessageFormatCompilation = errors.New("messageformat compilation failed")
 
 // Unmarshaler unmarshals translation files. Common implementations include
 // json.Unmarshal, yaml.Unmarshal, and toml.Unmarshal.
@@ -39,14 +32,14 @@ type I18n struct {
 	parsedTranslations        map[string]map[string]*parsedTranslation
 	runtimeParsedTranslations map[string]*parsedTranslation
 	runtimeTranslationsMu     sync.RWMutex
-	mfOptions                 *mf.MessageFormatOptions
+	messageFormat             messageFormatter
 }
 
 type parsedTranslation struct {
 	locale string
 	name   string
 	text   string
-	format mf.MessageFunction
+	format messageFunction
 }
 
 // WithUnmarshaler sets a custom unmarshaler for translation files.
@@ -99,40 +92,6 @@ func WithLocales(locales ...string) Option {
 			}
 		}
 		i.languages = tags
-	}
-}
-
-// WithMessageFormatOptions sets MessageFormat options for the bundle.
-func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
-	return func(i *I18n) {
-		if opts == nil {
-			i.mfOptions = nil
-			return
-		}
-
-		i.mfOptions = new(*opts)
-		i.mfOptions.CustomFormatters = maps.Clone(opts.CustomFormatters)
-	}
-}
-
-func (i *I18n) ensureMessageFormatOptions() *mf.MessageFormatOptions {
-	if i.mfOptions == nil {
-		i.mfOptions = &mf.MessageFormatOptions{}
-	}
-	return i.mfOptions
-}
-
-// WithCustomFormatters adds custom formatters for MessageFormat.
-func WithCustomFormatters(formatters map[string]any) Option {
-	return func(i *I18n) {
-		i.ensureMessageFormatOptions().CustomFormatters = maps.Clone(formatters)
-	}
-}
-
-// WithStrictMode enables strict parsing mode for MessageFormat.
-func WithStrictMode(strict bool) Option {
-	return func(i *I18n) {
-		i.ensureMessageFormatOptions().Strict = strict
 	}
 }
 
@@ -242,15 +201,6 @@ func (i *I18n) ensureDefaultLanguageFirst() {
 	i.languages = slices.Insert(i.languages, 0, i.defaultLanguage)
 }
 
-func messageFormatBase(locale string) (string, error) {
-	tag, err := language.Parse(locale)
-	if err != nil {
-		return "", fmt.Errorf("parse locale %q: %w", locale, err)
-	}
-	base, _ := tag.Base()
-	return base.String(), nil
-}
-
 func (i *I18n) matchExactLocale(locale string) string {
 	_, idx, conf := i.languageMatcher.Match(language.Make(locale))
 	if conf == language.Exact {
@@ -302,22 +252,12 @@ func (i *I18n) parseTranslation(locale, name, text string) (*parsedTranslation, 
 		text:   text,
 	}
 
-	base, err := messageFormatBase(locale)
+	format, err := i.messageFormat.compileTranslation(locale, name, text)
 	if err != nil {
-		return pt, fmt.Errorf("%w for locale %q key %q: %w", ErrMessageFormatCompilation, locale, name, err)
+		return pt, err
 	}
 
-	formatter, err := mf.New(base, i.mfOptions)
-	if err != nil {
-		return pt, fmt.Errorf("%w for locale %q key %q: create formatter: %w", ErrMessageFormatCompilation, locale, name, err)
-	}
-
-	compiled, err := formatter.Compile(text)
-	if err != nil {
-		return pt, fmt.Errorf("%w for locale %q key %q: %w", ErrMessageFormatCompilation, locale, name, err)
-	}
-
-	pt.format = compiled
+	pt.format = format
 	return pt, nil
 }
 

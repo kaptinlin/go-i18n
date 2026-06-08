@@ -1,11 +1,5 @@
 package i18n
 
-import (
-	"fmt"
-
-	mf "github.com/kaptinlin/messageformat-go/mf1"
-)
-
 // Localizer provides translation methods for a specific locale. Create one
 // via [I18n.NewLocalizer].
 type Localizer struct {
@@ -65,15 +59,11 @@ func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 		return pt.text
 	}
 
-	params := varsToParams(data)
-	result, err := pt.format(params)
+	result, err := formatCompiled(pt.format, data)
 	if err != nil {
 		return pt.text
 	}
-	if str, ok := result.(string); ok {
-		return str
-	}
-	return fmt.Sprintf("%v", result)
+	return result
 }
 
 // Format compiles and formats a MessageFormat message directly.
@@ -81,50 +71,5 @@ func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
 // so it is intended for dynamic, non-hot-path messages that are not stored in
 // translation files. Prefer [Localizer.Get] for normal translated content.
 func (l *Localizer) Format(message string, data ...Vars) (string, error) {
-	base, err := messageFormatBase(l.locale)
-	if err != nil {
-		return "", err
-	}
-
-	formatter, err := mf.New(base, l.bundle.mfOptions)
-	if err != nil {
-		return "", fmt.Errorf("create formatter: %w", err)
-	}
-
-	compiled, err := formatter.Compile(message)
-	if err != nil {
-		return "", fmt.Errorf("%w: compile message: %w", ErrMessageFormatCompilation, err)
-	}
-
-	params := varsToParams(data)
-
-	result, err := compiled(params)
-	if err != nil {
-		return "", fmt.Errorf("format message: %w", err)
-	}
-
-	str, ok := result.(string)
-	if !ok {
-		return fmt.Sprintf("%v", result), nil
-	}
-	return str, nil
-}
-
-func varsToParams(vars []Vars) any {
-	if len(vars) == 0 {
-		return nil
-	}
-	var params map[string]any
-	for _, v := range vars {
-		if v == nil {
-			continue
-		}
-		if params == nil {
-			params = make(map[string]any, len(v))
-		}
-		for key, value := range v {
-			params[key] = value
-		}
-	}
-	return params
+	return l.bundle.messageFormat.format(l.locale, message, data)
 }
