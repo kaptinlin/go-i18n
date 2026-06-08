@@ -178,6 +178,7 @@ func TestLoadMessagesReturnsCompilationError(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrMessageFormatCompilation)
+	assert.Contains(t, err.Error(), `compile translation for locale "en" key "broken"`)
 }
 
 func TestLoadMessagesSkipsUnmatchedLocale(t *testing.T) {

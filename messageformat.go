@@ -10,8 +10,28 @@ import (
 )
 
 // ErrMessageFormatCompilation indicates that MessageFormat template compilation failed.
-// The translation text is returned as-is without formatting capabilities.
+// Use errors.Is to classify load-time compilation and direct formatting errors.
+// Localizer.Get keeps the raw message text when formatting cannot produce a result.
 var ErrMessageFormatCompilation = errors.New("messageformat compilation failed")
+
+type messageFormatCompilationError struct {
+	err error
+}
+
+func (e *messageFormatCompilationError) Error() string {
+	if e.err == nil {
+		return ErrMessageFormatCompilation.Error()
+	}
+	return ErrMessageFormatCompilation.Error() + ": " + e.err.Error()
+}
+
+func (e *messageFormatCompilationError) Unwrap() error {
+	return e.err
+}
+
+func (e *messageFormatCompilationError) Is(target error) bool {
+	return target == ErrMessageFormatCompilation
+}
 
 type messageFunction func(any) (any, error)
 
@@ -70,12 +90,12 @@ func cloneMessageFormatOptions(opts *mf.MessageFormatOptions) *mf.MessageFormatO
 func (f *messageFormatter) compileTranslation(locale, name, text string) (messageFunction, error) {
 	formatter, err := f.newFormatter(locale)
 	if err != nil {
-		return nil, fmt.Errorf("%w for locale %q key %q: %w", ErrMessageFormatCompilation, locale, name, err)
+		return nil, fmt.Errorf("compile translation for locale %q key %q: %w", locale, name, &messageFormatCompilationError{err: err})
 	}
 
 	compiled, err := formatter.Compile(text)
 	if err != nil {
-		return nil, fmt.Errorf("%w for locale %q key %q: %w", ErrMessageFormatCompilation, locale, name, err)
+		return nil, fmt.Errorf("compile translation for locale %q key %q: %w", locale, name, &messageFormatCompilationError{err: err})
 	}
 
 	return messageFunction(compiled), nil
@@ -89,7 +109,7 @@ func (f *messageFormatter) format(locale, message string, data []Vars) (string, 
 
 	compiled, err := formatter.Compile(message)
 	if err != nil {
-		return "", fmt.Errorf("%w: compile message: %w", ErrMessageFormatCompilation, err)
+		return "", fmt.Errorf("compile message: %w", &messageFormatCompilationError{err: err})
 	}
 
 	result, err := formatCompiled(messageFunction(compiled), data)

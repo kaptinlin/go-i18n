@@ -484,6 +484,7 @@ func TestFormatCompileError(t *testing.T) {
 	_, err := loc.Format("{invalid syntax")
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrMessageFormatCompilation)
+	assert.Contains(t, err.Error(), "compile message")
 }
 
 func TestFormatReturnsRuntimeError(t *testing.T) {
