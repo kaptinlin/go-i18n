@@ -17,8 +17,12 @@ type TranslationResult struct {
 	// Text is the translated message, or the key itself if not found.
 	Text string
 
-	// Locale is the BCP 47 locale tag that produced Text.
-	Locale string
+	// MatchedLocale is the BCP 47 locale selected for this localizer.
+	MatchedLocale string
+
+	// CatalogLocale is the BCP 47 locale tag that supplied Text.
+	// It is empty when Source is TranslationSourceMissing.
+	CatalogLocale string
 
 	// Source reports whether the result came from the requested locale,
 	// the fallback chain, or runtime key fallback.

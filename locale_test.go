@@ -10,7 +10,7 @@ import (
 func TestMatchAvailableLocale(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 	)

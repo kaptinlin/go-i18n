@@ -14,10 +14,11 @@ import (
 func TestHTTPMiddleware(t *testing.T) {
 	t.Parallel()
 
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
 	)
+	require.NoError(t, err)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
 		"zh-Hans": {"hello": "你好"},
@@ -40,10 +41,11 @@ func TestHTTPMiddleware(t *testing.T) {
 func TestHTTPMiddlewareWithCustomDetector(t *testing.T) {
 	t.Parallel()
 
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
 	)
+	require.NoError(t, err)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
 		"zh-Hans": {"hello": "你好"},
@@ -68,10 +70,11 @@ func TestHTTPMiddlewareWithCustomDetector(t *testing.T) {
 func TestHTTPMiddlewareWithNilDetectorFallsBackToDefault(t *testing.T) {
 	t.Parallel()
 
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
 	)
+	require.NoError(t, err)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
 		"zh-Hans": {"hello": "你好"},

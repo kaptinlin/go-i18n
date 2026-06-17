@@ -41,22 +41,22 @@ type messageFormatter struct {
 
 // WithMessageFormatOptions sets MessageFormat options for the bundle.
 func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
-	return func(i *I18n) {
-		i.messageFormat.setOptions(opts)
+	return func(cfg *bundleConfig) {
+		cfg.messageFormat.setOptions(opts)
 	}
 }
 
 // WithCustomFormatters adds custom formatters for MessageFormat.
 func WithCustomFormatters(formatters map[string]any) Option {
-	return func(i *I18n) {
-		i.messageFormat.setCustomFormatters(formatters)
+	return func(cfg *bundleConfig) {
+		cfg.messageFormat.setCustomFormatters(formatters)
 	}
 }
 
 // WithStrictMode enables strict parsing mode for MessageFormat.
 func WithStrictMode(strict bool) Option {
-	return func(i *I18n) {
-		i.messageFormat.ensureOptions().Strict = strict
+	return func(cfg *bundleConfig) {
+		cfg.messageFormat.ensureOptions().Strict = strict
 	}
 }
 

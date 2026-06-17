@@ -10,29 +10,27 @@ import (
 )
 
 // LoadMessages loads translations from a locale-keyed map.
-// Locales not matching any configured locale are silently skipped.
 func (i *I18n) LoadMessages(msgs map[string]map[string]string) error {
-	for loc, texts := range msgs {
-		locale := i.matchExactLocale(loc)
-		if locale == "" {
-			continue
+	translations := cloneTranslations(i.directTranslations)
+	for _, loc := range slices.Sorted(maps.Keys(msgs)) {
+		texts := msgs[loc]
+		locale, err := i.resolveLoadLocale(loc)
+		if err != nil {
+			return err
 		}
-		if i.directTranslations[locale] == nil {
-			i.directTranslations[locale] = make(map[string]*parsedTranslation, len(texts))
+		if translations[locale] == nil {
+			translations[locale] = make(map[string]*parsedTranslation, len(texts))
 		}
-		if i.parsedTranslations[locale] == nil {
-			i.parsedTranslations[locale] = make(map[string]*parsedTranslation, len(texts))
-		}
-		for name, text := range texts {
+		for _, name := range slices.Sorted(maps.Keys(texts)) {
+			text := texts[name]
 			pt, err := i.parseTranslation(locale, name, text)
 			if err != nil {
 				return err
 			}
-			i.directTranslations[locale][name] = pt
-			i.parsedTranslations[locale][name] = pt
+			translations[locale][name] = pt
 		}
 	}
-	i.formatFallbacks()
+	i.directTranslations = translations
 	return nil
 }
 
@@ -84,7 +82,10 @@ func (i *I18n) mergeTranslation(
 	if err := i.unmarshaler(raw, &kv); err != nil {
 		return fmt.Errorf("unmarshal %q: %w", file, err)
 	}
-	locale := nameInsensitive(file)
+	locale, err := i.resolveLoadLocale(nameInsensitive(file))
+	if err != nil {
+		return err
+	}
 	if msgs[locale] == nil {
 		msgs[locale] = make(map[string]string, len(kv))
 	}
@@ -105,4 +106,14 @@ func collectGlobs(
 	}
 	slices.Sort(paths)
 	return slices.Compact(paths), nil
+}
+
+func cloneTranslations(
+	translations map[string]map[string]*parsedTranslation,
+) map[string]map[string]*parsedTranslation {
+	cloned := make(map[string]map[string]*parsedTranslation, len(translations))
+	for locale, direct := range translations {
+		cloned[locale] = maps.Clone(direct)
+	}
+	return cloned
 }

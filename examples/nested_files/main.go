@@ -16,10 +16,14 @@ func main() {
 }
 
 func run(fsys fs.FS, patterns ...string) {
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	if err := bundle.LoadFS(fsys, patterns...); err != nil {
 		fmt.Println(err)

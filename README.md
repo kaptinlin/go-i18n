@@ -9,8 +9,8 @@ For internal contracts and design rules, start with [SPECS/00-overview.md](SPECS
 
 - **ICU MessageFormat**: Use plural, select, and ordinal formatting through `github.com/kaptinlin/messageformat-go/v1`.
 - **Flexible loading**: Load translations from maps, files, glob patterns, or embedded filesystems.
-- **Deterministic fallbacks**: Root fallback chains in the configured default locale.
-- **Lookup details**: Use `Lookup` to get the rendered text, resolved locale, and result source.
+- **Deterministic fallbacks**: Resolve fallback chains at lookup time and use the configured default locale as the final fallback.
+- **Lookup details**: Use `Lookup` to get the rendered text, matched locale, catalog locale, and result source.
 - **Text and token keys**: Use token keys like `hello_world` or literal text keys with `GetX` context disambiguation.
 - **HTTP integration**: Detect locales from query, cookie, header, or `Accept-Language`, then inject a request-scoped localizer.
 - **Custom unmarshalers**: Keep JSON as the default, or plug in YAML, TOML, or INI parsing.
@@ -36,12 +36,15 @@ import (
 )
 
 func main() {
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	err := bundle.LoadMessages(map[string]map[string]string{
+	err = bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello, {name}!"},
 		"zh-Hans": {"hello": "你好，{name}！"},
 	})
@@ -58,9 +61,9 @@ func main() {
 
 ### Bundle and localizer
 
-- `NewBundle` constructs the shared translation bundle.
+- `NewBundle` constructs the shared translation bundle and returns an error for invalid locale configuration.
 - `WithDefaultLocale`, `WithLocales`, `WithFallback`, `WithUnmarshaler`, `WithMessageFormatOptions`, `WithCustomFormatters`, and `WithStrictMode` configure bundle behavior.
-- `NewLocalizer` picks the first matching locale from its arguments, then falls back to the default locale.
+- `NewLocalizer` picks the first supported locale match from its arguments, then falls back to the default locale.
 - `SupportedLocales` and `IsLanguageSupported` expose the configured locale matcher state.
 
 ### Load translations
@@ -73,6 +76,7 @@ Use the loader that matches your source of truth:
 - `LoadFS` for `go:embed` and other `fs.FS` implementations
 
 Translation file names are normalized to locales, so names like `zh_Hans.json` and `zh-Hans.user.json` still resolve to `zh-Hans`.
+Configured locale mistakes fail loudly: invalid construction locales make `NewBundle` return an error, and loading an unconfigured map locale or file locale returns an error without changing the existing catalog.
 
 ### Render translations
 
@@ -92,11 +96,12 @@ Use `Lookup` when you need to know where a translation came from.
 ```go
 result := localizer.Lookup("hello", i18n.Vars{"name": "Lin"})
 fmt.Println(result.Text)
-fmt.Println(result.Locale)
+fmt.Println(result.MatchedLocale)
+fmt.Println(result.CatalogLocale)
 fmt.Println(result.Source)
 ```
 
-`TranslationSource` reports one of `direct`, `fallback`, or `missing`.
+`MatchedLocale` is the locale selected for the localizer. `CatalogLocale` is the loaded catalog locale that supplied the text; it is empty when `Source` is `missing`. `TranslationSource` reports one of `direct`, `fallback`, or `missing`.
 
 Use `Has` and `Keys` for direct locale contents only. They do not include inherited fallback keys.
 
@@ -138,7 +143,10 @@ import (
 )
 
 func main() {
-	bundle := i18n.NewBundle(i18n.WithDefaultLocale("en"), i18n.WithLocales("en", "zh-Hans"))
+	bundle, err := i18n.NewBundle(i18n.WithDefaultLocale("en"), i18n.WithLocales("en", "zh-Hans"))
+	if err != nil {
+		panic(err)
+	}
 	_ = bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello"},
 	})
@@ -163,11 +171,14 @@ JSON is the default. Override it when your translation files use another format.
 ```go
 import "github.com/goccy/go-yaml"
 
-bundle := i18n.NewBundle(
+bundle, err := i18n.NewBundle(
 	i18n.WithDefaultLocale("en"),
 	i18n.WithLocales("en", "zh-Hans"),
 	i18n.WithUnmarshaler(yaml.Unmarshal),
 )
+if err != nil {
+	panic(err)
+}
 ```
 
 See `examples/yml`, `examples/toml`, and `examples/ini` for complete loaders.

@@ -15,7 +15,7 @@ import (
 func TestLoadFiles(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans"),
 	)
@@ -30,7 +30,7 @@ func TestLoadFiles(t *testing.T) {
 func TestLoadGlob(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans"),
 	)
@@ -45,7 +45,7 @@ func TestLoadGlob(t *testing.T) {
 func TestLoadFS(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans"),
 	)
@@ -60,7 +60,7 @@ func TestLoadFS(t *testing.T) {
 func TestLoadFilesReadError(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
@@ -76,7 +76,7 @@ func TestLoadFilesReadError(t *testing.T) {
 func TestLoadGlobInvalidPattern(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
@@ -108,7 +108,7 @@ func TestLoadFSReadError(t *testing.T) {
 		},
 		err: readErr,
 	}
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
@@ -122,7 +122,7 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 	t.Parallel()
 
 	fsys := fstest.MapFS{}
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
@@ -132,10 +132,29 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 	assert.ErrorIs(t, err, path.ErrBadPattern)
 }
 
+func TestLoadFSRejectsUnmatchedFileLocale(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{
+		"test/de.json": &fstest.MapFile{Data: []byte(`{"hello":"Hallo"}`)},
+	}
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+
+	err := bundle.LoadFS(fsys, "test/*.json")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `load translations from "test/de.json"`)
+	assert.Contains(t, err.Error(), `translation locale "de" is not configured`)
+
+	assert.Equal(t, "hello", bundle.NewLocalizer("en").Get("hello"))
+}
+
 func TestWithUnmarshalerNilKeepsDefault(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans"),
 		WithUnmarshaler(nil),
@@ -154,7 +173,7 @@ func TestMergeTranslationUnmarshalError(t *testing.T) {
 	badUnmarshaler := func([]byte, any) error {
 		return unmarshalErr
 	}
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 		WithUnmarshaler(badUnmarshaler),
@@ -168,7 +187,7 @@ func TestMergeTranslationUnmarshalError(t *testing.T) {
 func TestLoadMessagesReturnsCompilationError(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
@@ -181,18 +200,45 @@ func TestLoadMessagesReturnsCompilationError(t *testing.T) {
 	assert.Contains(t, err.Error(), `compile translation for locale "en" key "broken"`)
 }
 
-func TestLoadMessagesSkipsUnmatchedLocale(t *testing.T) {
+func TestLoadMessagesRejectsUnmatchedLocale(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello"},
+		"de": {"hello": "Hallo"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `translation locale "de" is not configured`)
+
+	loc := bundle.NewLocalizer("en")
+	assert.Equal(t, "hello", loc.Get("hello"))
+}
+
+func TestLoadMessagesFailedCompileLeavesCatalogUntouched(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
-		"en": {"hello": "Hello"},
-		"xx": {"hello": "XX Hello"},
+		"en": {"keep": "Old"},
 	}))
 
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"en": {
+			"a_valid":  "New",
+			"z_broken": "Hello, {name",
+		},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrMessageFormatCompilation)
+
 	loc := bundle.NewLocalizer("en")
-	assert.Equal(t, "Hello", loc.Get("hello"))
+	assert.Equal(t, "Old", loc.Get("keep"))
+	assert.Equal(t, "a_valid", loc.Get("a_valid"))
 }

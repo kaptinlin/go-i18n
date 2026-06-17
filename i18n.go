@@ -1,6 +1,7 @@
 package i18n
 
 import (
+	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
@@ -17,7 +18,16 @@ type Unmarshaler func(data []byte, v any) error
 
 // Option configures an [I18n] bundle. See [WithDefaultLocale],
 // [WithLocales], [WithFallback], and [WithUnmarshaler] for available options.
-type Option func(*I18n)
+type Option func(*bundleConfig)
+
+type bundleConfig struct {
+	defaultLocale    string
+	hasDefaultLocale bool
+	locales          []string
+	unmarshaler      Unmarshaler
+	fallbacks        map[string][]string
+	messageFormat    messageFormatter
+}
 
 // I18n is the main internationalization bundle that manages translations,
 // locales, and fallback chains.
@@ -29,7 +39,6 @@ type I18n struct {
 	languageMatcher           language.Matcher
 	fallbacks                 map[string][]string
 	directTranslations        map[string]map[string]*parsedTranslation
-	parsedTranslations        map[string]map[string]*parsedTranslation
 	runtimeParsedTranslations map[string]*parsedTranslation
 	runtimeTranslationsMu     sync.RWMutex
 	messageFormat             messageFormatter
@@ -45,11 +54,11 @@ type parsedTranslation struct {
 // WithUnmarshaler sets a custom unmarshaler for translation files.
 // The default is JSON. Common alternatives include YAML, TOML, and INI.
 func WithUnmarshaler(u Unmarshaler) Option {
-	return func(i *I18n) {
+	return func(cfg *bundleConfig) {
 		if u == nil {
 			return
 		}
-		i.unmarshaler = u
+		cfg.unmarshaler = u
 	}
 }
 
@@ -57,9 +66,9 @@ func WithUnmarshaler(u Unmarshaler) Option {
 // its value is an ordered list of fallback locales to try when a translation
 // is missing. The default locale is used as the final fallback.
 func WithFallback(f map[string][]string) Option {
-	return func(i *I18n) {
+	return func(cfg *bundleConfig) {
 		if f == nil {
-			i.fallbacks = nil
+			cfg.fallbacks = nil
 			return
 		}
 
@@ -67,58 +76,95 @@ func WithFallback(f map[string][]string) Option {
 		for locale, chain := range f {
 			fallbacks[locale] = slices.Clone(chain)
 		}
-		i.fallbacks = fallbacks
+		cfg.fallbacks = fallbacks
 	}
 }
 
 // WithDefaultLocale sets the default locale. This locale is used when no
 // translation is found in the requested locale or its fallback chain.
 func WithDefaultLocale(locale string) Option {
-	return func(i *I18n) {
-		i.defaultLanguage = language.Make(locale)
-		i.defaultLocale = i.defaultLanguage.String()
+	return func(cfg *bundleConfig) {
+		cfg.defaultLocale = locale
+		cfg.hasDefaultLocale = true
 	}
 }
 
 // WithLocales sets the supported locales for the bundle.
-// Invalid locale strings are silently ignored.
 func WithLocales(locales ...string) Option {
-	return func(i *I18n) {
-		tags := make([]language.Tag, 0, len(locales))
-		for _, loc := range locales {
-			tag, err := language.Parse(loc)
-			if err == nil && tag != language.Und {
-				tags = append(tags, tag)
-			}
-		}
-		i.languages = tags
+	return func(cfg *bundleConfig) {
+		cfg.locales = slices.Clone(locales)
 	}
 }
 
 // NewBundle creates a new internationalization bundle with the given options.
 // If no default locale is set, the first locale from [WithLocales] is used;
 // if no locales are configured, English is used as the default.
-func NewBundle(options ...Option) *I18n {
+func NewBundle(options ...Option) (*I18n, error) {
+	cfg := newBundleConfig()
+	for _, o := range options {
+		o(&cfg)
+	}
+
+	languages, defaultLanguage, err := buildLanguages(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	i := &I18n{
-		unmarshaler:               func(data []byte, v any) error { return json.Unmarshal(data, v) },
-		fallbacks:                 make(map[string][]string),
+		defaultLocale:             defaultLanguage.String(),
+		defaultLanguage:           defaultLanguage,
+		languages:                 languages,
+		unmarshaler:               cfg.unmarshaler,
 		directTranslations:        make(map[string]map[string]*parsedTranslation),
 		runtimeParsedTranslations: make(map[string]*parsedTranslation),
-		parsedTranslations:        make(map[string]map[string]*parsedTranslation),
+		messageFormat:             cfg.messageFormat,
 	}
-	for _, o := range options {
-		o(i)
-	}
-	if i.defaultLanguage == language.Und {
-		i.defaultLanguage = language.English
-		if len(i.languages) > 0 {
-			i.defaultLanguage = i.languages[0]
-		}
-		i.defaultLocale = i.defaultLanguage.String()
-	}
-	i.ensureDefaultLanguageFirst()
 	i.languageMatcher = language.NewMatcher(i.languages)
-	return i
+
+	fallbacks, err := i.normalizeFallbacks(cfg.fallbacks)
+	if err != nil {
+		return nil, err
+	}
+	i.fallbacks = fallbacks
+
+	return i, nil
+}
+
+func newBundleConfig() bundleConfig {
+	return bundleConfig{
+		unmarshaler: func(data []byte, v any) error { return json.Unmarshal(data, v) },
+		fallbacks:   make(map[string][]string),
+	}
+}
+
+func buildLanguages(cfg bundleConfig) ([]language.Tag, language.Tag, error) {
+	languages := make([]language.Tag, 0, len(cfg.locales)+1)
+	for _, loc := range cfg.locales {
+		tag, err := parseConfiguredLocale("supported", loc)
+		if err != nil {
+			return nil, language.Und, err
+		}
+		languages = appendUniqueLanguage(languages, tag)
+	}
+
+	defaultLanguage := language.English
+	if len(languages) > 0 {
+		defaultLanguage = languages[0]
+	}
+	if cfg.hasDefaultLocale {
+		tag, err := parseConfiguredLocale("default", cfg.defaultLocale)
+		if err != nil {
+			return nil, language.Und, err
+		}
+		defaultLanguage = tag
+	}
+
+	languages = moveLanguageFirst(languages, defaultLanguage)
+	if len(languages) == 0 {
+		languages = []language.Tag{defaultLanguage}
+	}
+
+	return languages, defaultLanguage, nil
 }
 
 // SupportedLocales returns the configured locale tags for this bundle.
@@ -184,25 +230,30 @@ func (i *I18n) resolveLocaleForTable(
 }
 
 func (i *I18n) resolveLocalizedLocale(locale string) (string, bool) {
-	return i.resolveLocaleForTable(locale, i.parsedTranslations, true)
-}
+	if locale == "" {
+		return "", false
+	}
 
-func (i *I18n) ensureDefaultLanguageFirst() {
-	if len(i.languages) == 0 {
-		i.languages = []language.Tag{i.defaultLanguage}
-		return
+	tag, err := language.Parse(locale)
+	if err != nil || tag == language.Und {
+		return "", false
 	}
-	if i.languages[0] == i.defaultLanguage {
-		return
+
+	_, idx, conf := i.languageMatcher.Match(tag)
+	if conf == language.No {
+		return "", false
 	}
-	if idx := slices.Index(i.languages, i.defaultLanguage); idx > 0 {
-		i.languages = slices.Delete(i.languages, idx, idx+1)
-	}
-	i.languages = slices.Insert(i.languages, 0, i.defaultLanguage)
+
+	return i.languages[idx].String(), true
 }
 
 func (i *I18n) matchExactLocale(locale string) string {
-	_, idx, conf := i.languageMatcher.Match(language.Make(locale))
+	tag, err := language.Parse(locale)
+	if err != nil || tag == language.Und {
+		return ""
+	}
+
+	_, idx, conf := i.languageMatcher.Match(tag)
 	if conf == language.Exact {
 		return i.languages[idx].String()
 	}
@@ -301,41 +352,6 @@ func (i *I18n) runtimeFallbackTranslation(name string) *parsedTranslation {
 	return &parsedTranslation{locale: i.defaultLocale, name: name, text: text}
 }
 
-// formatFallbacks populates missing translations for each locale by looking up
-// the best available fallback from the configured fallback chain.
-func (i *I18n) formatFallbacks() {
-	i.rebuildParsedTranslations()
-
-	names := make(map[string]struct{})
-	for _, translations := range i.directTranslations {
-		for name := range translations {
-			names[name] = struct{}{}
-		}
-	}
-
-	for locale, trans := range i.parsedTranslations {
-		if locale == i.defaultLocale {
-			continue
-		}
-		for name := range names {
-			if _, ok := trans[name]; ok {
-				continue
-			}
-			if best := i.lookupFallback(locale, name); best != nil {
-				trans[name] = best
-			}
-		}
-	}
-}
-
-func (i *I18n) rebuildParsedTranslations() {
-	translations := make(map[string]map[string]*parsedTranslation, len(i.directTranslations))
-	for locale, direct := range i.directTranslations {
-		translations[locale] = maps.Clone(direct)
-	}
-	i.parsedTranslations = translations
-}
-
 func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 	fallbacks := i.fallbacks[locale]
 	visited := map[string]struct{}{locale: {}}
@@ -361,5 +377,90 @@ func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 		}
 	}
 
-	return i.parsedTranslations[i.defaultLocale][name]
+	if _, ok := visited[i.defaultLocale]; ok {
+		return nil
+	}
+	return i.directTranslations[i.defaultLocale][name]
+}
+
+func (i *I18n) resolveLoadLocale(locale string) (string, error) {
+	tag, err := parseConfiguredLocale("translation", locale)
+	if err != nil {
+		return "", err
+	}
+
+	_, idx, conf := i.languageMatcher.Match(tag)
+	if conf != language.Exact {
+		return "", fmt.Errorf("translation locale %q is not configured", locale)
+	}
+	return i.languages[idx].String(), nil
+}
+
+func (i *I18n) normalizeFallbacks(raw map[string][]string) (map[string][]string, error) {
+	fallbacks := make(map[string][]string, len(raw))
+	for locale, chain := range raw {
+		matched, err := i.resolveFallbackLocale("fallback key", locale)
+		if err != nil {
+			return nil, err
+		}
+
+		normalized := make([]string, 0, len(chain))
+		for _, fallback := range chain {
+			matchedFallback, err := i.resolveFallbackLocale("fallback value", fallback)
+			if err != nil {
+				return nil, err
+			}
+			normalized = append(normalized, matchedFallback)
+		}
+		fallbacks[matched] = normalized
+	}
+	return fallbacks, nil
+}
+
+func (i *I18n) resolveFallbackLocale(kind, locale string) (string, error) {
+	tag, err := parseConfiguredLocale(kind, locale)
+	if err != nil {
+		return "", err
+	}
+
+	_, idx, conf := i.languageMatcher.Match(tag)
+	if conf != language.Exact {
+		return "", fmt.Errorf("%s locale %q is not configured", kind, locale)
+	}
+	return i.languages[idx].String(), nil
+}
+
+func parseConfiguredLocale(kind, locale string) (language.Tag, error) {
+	if strings.TrimSpace(locale) == "" {
+		return language.Und, fmt.Errorf("%s locale is empty", kind)
+	}
+
+	tag, err := language.Parse(locale)
+	if err != nil || tag == language.Und {
+		if err == nil {
+			return language.Und, fmt.Errorf("%s locale %q is invalid", kind, locale)
+		}
+		return language.Und, fmt.Errorf("%s locale %q is invalid: %w", kind, locale, err)
+	}
+	return tag, nil
+}
+
+func appendUniqueLanguage(languages []language.Tag, tag language.Tag) []language.Tag {
+	if slices.Contains(languages, tag) {
+		return languages
+	}
+	return append(languages, tag)
+}
+
+func moveLanguageFirst(languages []language.Tag, first language.Tag) []language.Tag {
+	if len(languages) == 0 {
+		return []language.Tag{first}
+	}
+	if languages[0] == first {
+		return languages
+	}
+	if idx := slices.Index(languages, first); idx > 0 {
+		languages = slices.Delete(languages, idx, idx+1)
+	}
+	return slices.Insert(languages, 0, first)
 }

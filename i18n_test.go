@@ -8,6 +8,7 @@ import (
 	mf "github.com/kaptinlin/messageformat-go/mf1"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/text/language"
 
 	yaml "github.com/goccy/go-yaml"
@@ -21,7 +22,7 @@ func TestLoadMessages(t *testing.T) {
 
 	assert := assert.New(t)
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 	)
@@ -49,7 +50,7 @@ func TestUnmarshaler(t *testing.T) {
 
 	assert := assert.New(t)
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans"),
 		WithUnmarshaler(yaml.Unmarshal),
@@ -65,7 +66,7 @@ func TestTomlUnmarshaler(t *testing.T) {
 
 	assert := assert.New(t)
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("zh-Hans"),
 		WithLocales("zh-Hans"),
 		WithUnmarshaler(toml.Unmarshal),
@@ -79,7 +80,7 @@ func TestTomlUnmarshaler(t *testing.T) {
 func TestNewBundleNoOptions(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle()
+	bundle := newTestBundle(t)
 	assert.NotNil(t, bundle)
 	assert.Equal(t, "en", bundle.NewLocalizer().Locale())
 	assert.Len(t, bundle.SupportedLocales(), 1)
@@ -88,7 +89,7 @@ func TestNewBundleNoOptions(t *testing.T) {
 func TestSupportedLocales(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
 	)
@@ -100,7 +101,7 @@ func TestSupportedLocales(t *testing.T) {
 func TestSupportedLocalesReturnsCopy(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
 	)
@@ -118,7 +119,7 @@ func TestWithFallbackClonesInput(t *testing.T) {
 		"ja-JP": {"ko-KR"},
 	}
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
 		WithFallback(fallbacks),
@@ -139,7 +140,7 @@ func TestWithFallbackClonesInput(t *testing.T) {
 func TestWithFallbackNilClearsFallbacks(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{"ja-JP": {"ko-KR"}}),
@@ -165,7 +166,7 @@ func TestWithMessageFormatOptionsClonesInput(t *testing.T) {
 		},
 	}
 
-	bundle := NewBundle(WithDefaultLocale("en"), WithMessageFormatOptions(options))
+	bundle := newTestBundle(t, WithDefaultLocale("en"), WithMessageFormatOptions(options))
 
 	options.CustomFormatters["upper"] = func(value any, locale string, arg *string) any {
 		return "MUTATED"
@@ -185,7 +186,7 @@ func TestWithCustomFormattersClonesInput(t *testing.T) {
 		},
 	}
 
-	bundle := NewBundle(WithDefaultLocale("en"), WithCustomFormatters(formatters))
+	bundle := newTestBundle(t, WithDefaultLocale("en"), WithCustomFormatters(formatters))
 
 	formatters["upper"] = func(value any, locale string, arg *string) any {
 		return "MUTATED"
@@ -199,7 +200,7 @@ func TestWithCustomFormattersClonesInput(t *testing.T) {
 func TestWithMessageFormatOptionsNilClearsPreviousOptions(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithCustomFormatters(map[string]any{
 			"upper": func(value any, locale string, arg *string) any {
@@ -217,7 +218,7 @@ func TestWithMessageFormatOptionsNilClearsPreviousOptions(t *testing.T) {
 func TestHas(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
@@ -238,7 +239,7 @@ func TestHas(t *testing.T) {
 func TestHasDoesNotFallBackToDefaultForMatchedLocaleWithoutDirectTranslations(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
@@ -253,7 +254,7 @@ func TestHasDoesNotFallBackToDefaultForMatchedLocaleWithoutDirectTranslations(t 
 func TestHasIgnoresFallbackKeys(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
 		WithFallback(map[string][]string{
@@ -274,7 +275,7 @@ func TestHasIgnoresFallbackKeys(t *testing.T) {
 func TestKeys(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
 	)
@@ -300,7 +301,7 @@ func TestKeys(t *testing.T) {
 func TestDirectLocaleIntrospectionMatchesRegionalLocale(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en-US"),
 		WithLocales("en-US", "fr-FR"),
 	)
@@ -320,7 +321,7 @@ func TestDirectLocaleIntrospectionMatchesRegionalLocale(t *testing.T) {
 func TestKeysDoNotFallBackToDefaultForMatchedLocaleWithoutDirectTranslations(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
@@ -335,7 +336,7 @@ func TestKeysDoNotFallBackToDefaultForMatchedLocaleWithoutDirectTranslations(t *
 func TestKeysIgnoreFallbackKeys(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
 		WithFallback(map[string][]string{
@@ -354,10 +355,10 @@ func TestKeysIgnoreFallbackKeys(t *testing.T) {
 	}
 }
 
-func TestNewLocalizerKeepsFirstLoadedMatchWhenRequestedLocaleLacksDirectTranslations(t *testing.T) {
+func TestNewLocalizerKeepsFirstSupportedMatchWhenRequestedLocaleLacksDirectTranslations(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
 	)
@@ -367,13 +368,14 @@ func TestNewLocalizerKeepsFirstLoadedMatchWhenRequestedLocaleLacksDirectTranslat
 	}))
 
 	loc := bundle.NewLocalizer("ja-JP", "zh-CN")
-	assert.Equal(t, "zh-Hans", loc.Locale())
+	assert.Equal(t, "ja-JP", loc.Locale())
+	assert.Equal(t, "Hello", loc.Get("hello"))
 }
 
 func TestIsLanguageSupported(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP"),
 	)
@@ -383,29 +385,27 @@ func TestIsLanguageSupported(t *testing.T) {
 	assert.False(t, bundle.IsLanguageSupported(language.Afrikaans))
 }
 
-func TestNewLocalizerMatchedButNoTranslations(t *testing.T) {
+func TestNewLocalizerMatchesSupportedLocaleBeforeTranslationsLoad(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
-	// Load translations only for en, not zh-Hans.
 	err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello"},
 	})
 	assert.NoError(t, err)
 
-	// zh-Hans matches but has no parsedTranslations entry,
-	// so NewLocalizer should fall through to default.
 	loc := bundle.NewLocalizer("zh-Hans")
-	assert.Equal(t, "en", loc.Locale())
+	assert.Equal(t, "zh-Hans", loc.Locale())
+	assert.Equal(t, "Hello", loc.Get("hello"))
 }
 
-func TestNewLocalizerMatchedLocaleWithoutLoadedTranslationsFallsToDefault(t *testing.T) {
+func TestNewLocalizerRegionalMatchUsesSupportedLocaleBeforeTranslationsLoad(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
@@ -414,14 +414,14 @@ func TestNewLocalizerMatchedLocaleWithoutLoadedTranslationsFallsToDefault(t *tes
 	}))
 
 	loc := bundle.NewLocalizer("zh-CN")
-	assert.Equal(t, "en", loc.Locale())
+	assert.Equal(t, "zh-Hans", loc.Locale())
 	assert.Equal(t, "Hello", loc.Get("hello"))
 }
 
 func TestNewLocalizerNoMatchFallsToDefault(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en"),
 	)
@@ -437,7 +437,7 @@ func TestNewLocalizerNoMatchFallsToDefault(t *testing.T) {
 func TestNewLocalizerUsesLocaleMatchingForLoadedTranslations(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
@@ -455,7 +455,7 @@ func TestNewLocalizerUsesLocaleMatchingForLoadedTranslations(t *testing.T) {
 func TestRuntimeFallbackTrimsOnlyContextSuffix(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(WithDefaultLocale("en"), WithLocales("en"))
+	bundle := newTestBundle(t, WithDefaultLocale("en"), WithLocales("en"))
 	assert.NoError(t, bundle.LoadMessages(map[string]map[string]string{"en": {}}))
 	localizer := bundle.NewLocalizer("en")
 
@@ -464,10 +464,10 @@ func TestRuntimeFallbackTrimsOnlyContextSuffix(t *testing.T) {
 	assert.Equal(t, "literal>", localizer.Get("literal>"))
 }
 
-func TestNewLocalizerFallsBackToDefaultWhenRegionalMatchIsUnloaded(t *testing.T) {
+func TestNewLocalizerKeepsRegionalMatchBeforeTranslationsLoad(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en-US"),
 		WithLocales("en-US", "fr-FR"),
 	)
@@ -476,22 +476,78 @@ func TestNewLocalizerFallsBackToDefaultWhenRegionalMatchIsUnloaded(t *testing.T)
 	}))
 
 	loc := bundle.NewLocalizer("fr-CA")
-	assert.Equal(t, "en-US", loc.Locale())
+	assert.Equal(t, "fr-FR", loc.Locale())
 	assert.Equal(t, "Hello", loc.Get("hello"))
 }
 
 func TestNewBundleDefaultLocaleFromLocales(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(WithLocales("fr", "de"))
+	bundle := newTestBundle(t, WithLocales("fr", "de"))
 	assert.Equal(t, "fr", bundle.NewLocalizer().Locale())
 }
 
-func TestWithLocalesInvalidIgnored(t *testing.T) {
+func TestWithLocalesInvalidReturnsError(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(WithLocales("en", "???invalid???"))
-	assert.Len(t, bundle.SupportedLocales(), 1)
+	bundle, err := NewBundle(WithLocales("en", "???invalid???"))
+	assert.Nil(t, bundle)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `supported locale "???invalid???" is invalid`)
+}
+
+func TestNewBundleRejectsInvalidLocaleConfiguration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{
+			name: "invalid default locale",
+			opts: []Option{WithDefaultLocale("???invalid???")},
+			want: `default locale "???invalid???" is invalid`,
+		},
+		{
+			name: "unconfigured fallback key",
+			opts: []Option{
+				WithDefaultLocale("en"),
+				WithLocales("en"),
+				WithFallback(map[string][]string{"de": {"en"}}),
+			},
+			want: `fallback key locale "de" is not configured`,
+		},
+		{
+			name: "unconfigured fallback value",
+			opts: []Option{
+				WithDefaultLocale("en"),
+				WithLocales("en", "fr"),
+				WithFallback(map[string][]string{"fr": {"de"}}),
+			},
+			want: `fallback value locale "de" is not configured`,
+		},
+		{
+			name: "invalid fallback value",
+			opts: []Option{
+				WithDefaultLocale("en"),
+				WithLocales("en", "fr"),
+				WithFallback(map[string][]string{"fr": {"???invalid???"}}),
+			},
+			want: `fallback value locale "???invalid???" is invalid`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			bundle, err := NewBundle(tt.opts...)
+			assert.Nil(t, bundle)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
 }
 
 func TestCircularFallback(t *testing.T) {
@@ -500,7 +556,7 @@ func TestCircularFallback(t *testing.T) {
 	assert := assert.New(t)
 
 	// Circular fallback: ja-JP -> ko-KR -> ja-JP should not infinite loop.
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{
@@ -522,7 +578,7 @@ func TestCircularFallback(t *testing.T) {
 func TestRecursiveFallbackUsesFirstAvailableTranslation(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
 		WithFallback(map[string][]string{
@@ -543,7 +599,7 @@ func TestRecursiveFallbackUsesFirstAvailableTranslation(t *testing.T) {
 func TestFallbackChainPrefersNestedFirstFallbackBeforeLaterSibling(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans", "fr"),
 		WithFallback(map[string][]string{
@@ -565,7 +621,7 @@ func TestFallbackChainPrefersNestedFirstFallbackBeforeLaterSibling(t *testing.T)
 func TestFallbackChainUsesLaterConfiguredFallbackBeforeDefault(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
 		WithFallback(map[string][]string{
@@ -590,7 +646,7 @@ func TestFallbackChainUsesLaterConfiguredFallbackBeforeDefault(t *testing.T) {
 func TestFallbackChainUsesConfiguredLocaleWhenDefaultLacksKey(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "zh-Hans"),
 		WithFallback(map[string][]string{
@@ -607,7 +663,8 @@ func TestFallbackChainUsesConfiguredLocaleWhenDefaultLacksKey(t *testing.T) {
 	result := localizer.Lookup("regional", Vars{"name": "Ada"})
 
 	assert.Equal(t, "你好，Ada!", result.Text)
-	assert.Equal(t, "zh-Hans", result.Locale)
+	assert.Equal(t, "ja-JP", result.MatchedLocale)
+	assert.Equal(t, "zh-Hans", result.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, result.Source)
 	assert.Equal(t, "Default only", localizer.Get("default_only"))
 }
@@ -615,7 +672,7 @@ func TestFallbackChainUsesConfiguredLocaleWhenDefaultLacksKey(t *testing.T) {
 func TestFallbackChainRecomputesWhenFallbackLocaleLoadsLater(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "zh-Hans"),
 		WithFallback(map[string][]string{
@@ -634,14 +691,15 @@ func TestFallbackChainRecomputesWhenFallbackLocaleLoadsLater(t *testing.T) {
 
 	result := bundle.NewLocalizer("ja-JP").Lookup("shared")
 	assert.Equal(t, "中文", result.Text)
-	assert.Equal(t, "zh-Hans", result.Locale)
+	assert.Equal(t, "ja-JP", result.MatchedLocale)
+	assert.Equal(t, "zh-Hans", result.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, result.Source)
 }
 
 func TestLookupFallbackChainReportsConfiguredLocaleBeforeDefault(t *testing.T) {
 	t.Parallel()
 
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
 		WithFallback(map[string][]string{
@@ -662,12 +720,14 @@ func TestLookupFallbackChainReportsConfiguredLocaleBeforeDefault(t *testing.T) {
 
 	configured := localizer.Lookup("shared")
 	assert.Equal(t, "中文", configured.Text)
-	assert.Equal(t, "zh-Hans", configured.Locale)
+	assert.Equal(t, "ja-JP", configured.MatchedLocale)
+	assert.Equal(t, "zh-Hans", configured.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, configured.Source)
 
 	defaulted := localizer.Lookup("default_only")
 	assert.Equal(t, "Default only", defaulted.Text)
-	assert.Equal(t, "en", defaulted.Locale)
+	assert.Equal(t, "ja-JP", defaulted.MatchedLocale)
+	assert.Equal(t, "en", defaulted.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, defaulted.Source)
 }
 
@@ -675,7 +735,7 @@ func TestLookupInvalidMessageFormat(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
-	bundle := NewBundle(
+	bundle := newTestBundle(t,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans"),
 	)
@@ -690,6 +750,7 @@ func TestLookupInvalidMessageFormat(t *testing.T) {
 	// The key itself will be used as text; compilation fails gracefully.
 	r := localizer.Lookup("{invalid syntax")
 	assert.Equal("{invalid syntax", r.Text)
-	assert.Equal("en", r.Locale)
+	assert.Equal("zh-Hans", r.MatchedLocale)
+	assert.Empty(r.CatalogLocale)
 	assert.Equal(TranslationSourceMissing, r.Source)
 }

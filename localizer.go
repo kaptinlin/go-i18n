@@ -7,6 +7,13 @@ type Localizer struct {
 	locale string
 }
 
+type resolvedTranslation struct {
+	translation   *parsedTranslation
+	source        TranslationSource
+	matchedLocale string
+	catalogLocale string
+}
+
 // Locale returns the resolved locale name for this localizer.
 func (l *Localizer) Locale() string {
 	return l.locale
@@ -15,8 +22,8 @@ func (l *Localizer) Locale() string {
 // Get returns the translation for name with optional MessageFormat variables.
 // Returns name as fallback if no translation is found.
 func (l *Localizer) Get(name string, data ...Vars) string {
-	pt, _ := l.resolve(name)
-	return l.localize(pt, data...)
+	resolved := l.resolve(name)
+	return l.localize(resolved.translation, data...)
 }
 
 // GetX returns the translation for name disambiguated by context.
@@ -29,29 +36,37 @@ func (l *Localizer) GetX(name, context string, data ...Vars) string {
 // Lookup returns the translation for name with full lookup details.
 // Use [Localizer.Get] for the common case where only the text is needed.
 func (l *Localizer) Lookup(name string, data ...Vars) TranslationResult {
-	pt, found := l.resolve(name)
+	resolved := l.resolve(name)
 	return TranslationResult{
-		Text:   l.localize(pt, data...),
-		Locale: pt.locale,
-		Source: l.translationSource(pt, found),
+		Text:          l.localize(resolved.translation, data...),
+		MatchedLocale: resolved.matchedLocale,
+		CatalogLocale: resolved.catalogLocale,
+		Source:        resolved.source,
 	}
 }
 
-func (l *Localizer) translationSource(pt *parsedTranslation, found bool) TranslationSource {
-	if !found {
-		return TranslationSourceMissing
+func (l *Localizer) resolve(name string) resolvedTranslation {
+	if pt, ok := l.bundle.directTranslations[l.locale][name]; ok {
+		return resolvedTranslation{
+			translation:   pt,
+			source:        TranslationSourceDirect,
+			matchedLocale: l.locale,
+			catalogLocale: pt.locale,
+		}
 	}
-	if pt.locale == l.locale {
-		return TranslationSourceDirect
+	if pt := l.bundle.lookupFallback(l.locale, name); pt != nil {
+		return resolvedTranslation{
+			translation:   pt,
+			source:        TranslationSourceFallback,
+			matchedLocale: l.locale,
+			catalogLocale: pt.locale,
+		}
 	}
-	return TranslationSourceFallback
-}
-
-func (l *Localizer) resolve(name string) (*parsedTranslation, bool) {
-	if pt, ok := l.bundle.parsedTranslations[l.locale][name]; ok {
-		return pt, true
+	return resolvedTranslation{
+		translation:   l.bundle.getRuntimeParsedTranslation(name),
+		source:        TranslationSourceMissing,
+		matchedLocale: l.locale,
 	}
-	return l.bundle.getRuntimeParsedTranslation(name), false
 }
 
 func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {

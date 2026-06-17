@@ -7,12 +7,16 @@ import (
 )
 
 func main() {
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	err := bundle.LoadMessages(map[string]map[string]string{
+	err = bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"message_basic":       "{count, plural, one {Message} other {Messages}}",
 			"message_with_number": "{count, plural, =0 {No messages} one {1 message} other {# messages}}",

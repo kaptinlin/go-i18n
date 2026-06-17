@@ -65,7 +65,7 @@ func BenchmarkLocalizerGetTextBased(b *testing.B) {
 
 // BenchmarkLocalizerFormat benchmarks direct MessageFormat compilation and formatting.
 func BenchmarkLocalizerFormat(b *testing.B) {
-	bundle := NewBundle(WithDefaultLocale("en"))
+	bundle := newTestBundle(b, WithDefaultLocale("en"))
 	localizer := bundle.NewLocalizer("en")
 	vars := Vars{"name": "Alice"}
 	for b.Loop() {
@@ -75,7 +75,7 @@ func BenchmarkLocalizerFormat(b *testing.B) {
 
 // BenchmarkLocalizerFormatPlural benchmarks MessageFormat with plural forms.
 func BenchmarkLocalizerFormatPlural(b *testing.B) {
-	bundle := NewBundle(WithDefaultLocale("en"))
+	bundle := newTestBundle(b, WithDefaultLocale("en"))
 	localizer := bundle.NewLocalizer("en")
 	vars := Vars{"count": 5}
 	for b.Loop() {
@@ -109,7 +109,7 @@ func BenchmarkNameInsensitiveSingle(b *testing.B) {
 // BenchmarkLoadFiles benchmarks loading translation files.
 func BenchmarkLoadFiles(b *testing.B) {
 	for b.Loop() {
-		bundle := NewBundle(
+		bundle := newTestBundle(b,
 			WithDefaultLocale("zh-Hans"),
 			WithLocales("zh-Hans"),
 		)
@@ -132,7 +132,7 @@ func BenchmarkLoadMessages(b *testing.B) {
 		},
 	}
 	for b.Loop() {
-		bundle := NewBundle(
+		bundle := newTestBundle(b,
 			WithDefaultLocale("en"),
 			WithLocales("en", "zh-Hans"),
 		)
@@ -143,19 +143,23 @@ func BenchmarkLoadMessages(b *testing.B) {
 // BenchmarkNewBundle benchmarks creating a new bundle with options.
 func BenchmarkNewBundle(b *testing.B) {
 	for b.Loop() {
-		_ = NewBundle(
+		bundle, err := NewBundle(
 			WithDefaultLocale("en"),
 			WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
 			WithFallback(map[string][]string{
 				"ja-JP": {"ko-KR", "zh-Hans"},
 			}),
 		)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_ = bundle
 	}
 }
 
 // BenchmarkNewLocalizer benchmarks creating a new localizer.
 func BenchmarkNewLocalizer(b *testing.B) {
-	bundle := NewBundle(
+	bundle := newTestBundle(b,
 		WithDefaultLocale("en"),
 		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
 	)

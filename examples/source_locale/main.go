@@ -7,10 +7,13 @@ import (
 )
 
 func main() {
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
+	if err != nil {
+		panic(err)
+	}
 
 	if err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {
@@ -66,9 +69,10 @@ func main() {
 
 func printResult(key string, r i18n.TranslationResult) {
 	fmt.Printf("Key: %q\n", key)
-	fmt.Printf("  Text:   %q\n", r.Text)
-	fmt.Printf("  Locale: %q\n", r.Locale)
-	fmt.Printf("  Source: %q\n", r.Source)
+	fmt.Printf("  Text:           %q\n", r.Text)
+	fmt.Printf("  Matched locale: %q\n", r.MatchedLocale)
+	fmt.Printf("  Catalog locale: %q\n", r.CatalogLocale)
+	fmt.Printf("  Source:         %q\n", r.Source)
 	fmt.Println()
 }
 
@@ -77,8 +81,8 @@ func printSource(key string, r i18n.TranslationResult) {
 	case i18n.TranslationSourceMissing:
 		fmt.Printf("  %q: NOT FOUND\n", key)
 	case i18n.TranslationSourceFallback:
-		fmt.Printf("  %q: fallback from %s\n", key, r.Locale)
+		fmt.Printf("  %q: fallback from %s\n", key, r.CatalogLocale)
 	case i18n.TranslationSourceDirect:
-		fmt.Printf("  %q: direct hit in %s\n", key, r.Locale)
+		fmt.Printf("  %q: direct hit in %s\n", key, r.CatalogLocale)
 	}
 }

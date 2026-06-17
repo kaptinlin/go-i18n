@@ -7,10 +7,14 @@ import (
 )
 
 func main() {
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	if err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {

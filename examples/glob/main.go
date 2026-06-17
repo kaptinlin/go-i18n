@@ -11,10 +11,14 @@ func main() {
 }
 
 func run(patterns ...string) {
-	bundle := i18n.NewBundle(
+	bundle, err := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
 		i18n.WithLocales("en", "zh-Hans"),
 	)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	if err := bundle.LoadGlob(patterns...); err != nil {
 		fmt.Println(err)

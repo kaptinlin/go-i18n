@@ -1,132 +1,219 @@
-# go-i18n — Overview
+# go-i18n Specification
 
 ## Overview
 
-go-i18n is a Go library for loading translations, matching locales, and rendering localized strings with ICU MessageFormat support. Its scope is a small public surface: bundle construction, locale-scoped lookup, loader entry points, and optional `net/http` middleware.
+go-i18n is a Go library for constructing one validated translation bundle,
+loading flat locale catalogs, matching runtime locale preferences, and rendering
+localized strings with ICU MessageFormat support.
 
-The library is not a framework, not a global translator runtime, and not a custom template engine. Applications compose it by constructing one `*I18n` bundle and deriving `*Localizer` values for requests, jobs, or locale-specific work.
+The library is intentionally small. `I18n` owns shared catalog state and locale
+rules. `Localizer` owns one matched-locale view over that state. Optional
+`net/http` middleware only connects request detection to a request context.
 
-## Public Surface
-
-### Bundle and Localizer
-
-- `I18n` owns loaded translations, locale matching, fallback state, and runtime caches.
-- `Localizer` performs locale-scoped lookup and formatting through `Get`, `GetX`, `Lookup`, and `Format`.
-- `middleware/` is optional integration for stdlib HTTP only.
-
-> **Why**: Bundle construction and locale-scoped lookup have different lifetimes. Sharing immutable translation data through `I18n` and deriving `Localizer` instances keeps the hot path small without introducing global mutable state.
+> **Why**: Translation state and request locale choice have different
+> lifetimes. Keeping the bundle shared and the localizer cheap makes the common
+> path understandable without global mutable state.
 >
-> **Rejected**: Global translator singletons, request-agnostic mutable locale state, and framework-specific integrations in the core package.
+> **Rejected**: Global translator singletons, request-scoped bundle mutation,
+> framework-specific core integrations, and compatibility constructors that
+> preserve invalid configuration silently.
 
-### Translation and Fallback Model
+## Concept Model
 
-- Translations load through `LoadMessages`, `LoadFiles`, `LoadGlob`, or `LoadFS`.
-- Loaded translations are treated as immutable after load; only narrowly scoped runtime caches may mutate under synchronization.
-- Fallback resolution is rooted in the configured default locale.
-- `Lookup` reports whether a result was a direct hit, a fallback hit, or a miss.
-- `Has` and `Keys` report only keys defined directly on a locale, not inherited fallback keys.
+### Bundle
 
-> **Why**: Lookup and introspection serve different needs. Keeping fallback resolution explicit in `Lookup` while limiting `Has` and `Keys` to direct keys preserves deterministic analytics and avoids surprising inherited state in inspection APIs.
+- **Definition**: The validated shared object returned by `NewBundle`.
+- **Owns**: supported locales, default locale, fallback rules, directly loaded
+  catalog entries, MessageFormat configuration, file unmarshaling, and runtime
+  missing-key cache.
+- **Lifecycle**: constructed once during application setup, loaded through
+  `Load*` methods, then shared by localizers.
+- **Invariants**: locale-bearing construction input is valid before a bundle is
+  returned; directly loaded catalog state is replaced only after a complete load
+  succeeds.
+
+### Catalog
+
+- **Definition**: Directly loaded translations keyed by canonical BCP 47 locale
+  and translation key.
+- **Includes**: entries from `LoadMessages`, `LoadFiles`, `LoadGlob`, and
+  `LoadFS`.
+- **Excludes**: fallback-populated copies, nested translation trees, live reload
+  policy, and persistence policy.
+- **Lifecycle**: each successful load merges staged entries into a cloned
+  direct catalog and commits the whole catalog replacement atomically.
+- **Invariants**: failed loads leave the previous direct catalog untouched.
+
+### Localizer
+
+- **Definition**: A locale-scoped view over a bundle.
+- **Owns**: the matched locale selected from caller preferences.
+- **Lifecycle**: created with `NewLocalizer` for requests, jobs, or
+  locale-specific work.
+- **Invariants**: matching uses supported locales, not whether a locale has
+  already loaded translations.
+
+### Lookup Result
+
+- **Definition**: The diagnostic result returned by `Localizer.Lookup`.
+- **Fields**:
+  - `Text`: rendered translation text, or the key text on miss.
+  - `MatchedLocale`: the locale selected for the localizer.
+  - `CatalogLocale`: the loaded catalog locale that supplied `Text`.
+  - `Source`: `direct`, `fallback`, or `missing`.
+- **Invariants**: missing results have an empty `CatalogLocale`; direct results
+  use the matched locale as catalog locale; fallback results keep matched and
+  catalog locale distinct when fallback supplied the text.
+
+## Public API Contracts
+
+### Construction
+
+- `NewBundle(options ...Option) (*I18n, error)` is the only bundle constructor.
+- `WithDefaultLocale`, `WithLocales`, and `WithFallback` participate in a single
+  locale validation contract.
+- Invalid or empty locale tags are construction errors.
+- Fallback keys and fallback values must resolve exactly to configured
+  supported locales.
+- If no default locale is supplied, the first supported locale is the default.
+  If no locales are supplied, English is the default supported locale.
+- `Option` configures construction state; it must not mutate a partially
+  constructed bundle.
+
+> **Why**: Locale configuration is startup trust data. Returning a bundle after
+> repairing or ignoring bad locale input makes later translation loss look like
+> runtime behavior instead of setup failure.
 >
-> **Rejected**: Introspection APIs that silently include inherited keys, and ad hoc merge helpers that create a second translation-loading model.
+> **Rejected**: parallel constructors, best-effort invalid locale filtering,
+> and option callbacks that mutate live bundle state during construction.
 
-### Locale Handling
+### Loading
 
-- Locale parsing and matching must use `golang.org/x/text/language`.
-- Request detection may combine query, cookie, header, and `Accept-Language` sources, but locale normalization still flows through `language.Tag` parsing and matching.
-- Locale behavior must come from BCP 47 semantics, not string heuristics.
+- `LoadMessages`, `LoadFiles`, `LoadGlob`, and `LoadFS` are the only catalog
+  loading paths.
+- Each load validates every incoming locale before committing any catalog
+  changes.
+- Each incoming message is compiled before commit.
+- File names map to locales through the package filename normalization rule;
+  the resulting locale must still be valid and configured.
+- Multiple successful loads may add or replace direct entries for a locale.
 
-> **Why**: Locale matching is correctness-sensitive. Delegating parsing and matching to `golang.org/x/text/language` keeps behavior aligned with standard BCP 47 handling instead of accumulating partial custom logic.
+> **Why**: A failed startup load must not poison the bundle with half of a new
+> catalog. Loading either teaches the bundle a complete staged change or teaches
+> it nothing.
 >
-> **Rejected**: Hand-rolled locale normalization and string-prefix matching rules.
+> **Rejected**: silently skipping unknown locale maps or files, in-place repair
+> of live catalog maps during parse loops, and a second loader model for merged
+> fallback catalogs.
 
-### Message Formatting
+### Locale Matching
 
-- Localized messages use `github.com/kaptinlin/messageformat-go/v1` as the formatting engine.
-- ICU MessageFormat is the only supported path for pluralization and selector behavior.
-- Invalid templates and runtime formatting failures fall back to raw text where the existing API already exposes graceful degradation.
-- `Format` exists for dynamic messages that are not loaded from translation files; it is not the primary translation path.
+- Locale parsing and matching must flow through `golang.org/x/text/language`.
+- Construction and loading are strict trust boundaries.
+- Runtime locale preferences are forgiving: `NewLocalizer`,
+  `MatchAvailableLocale`, and `Detector` return the best supported match or the
+  default locale.
+- Explicit request sources may be ignored when empty, invalid, or unsupported,
+  allowing later detector sources to win.
 
-> **Why**: ICU MessageFormat provides the required pluralization and selector model, while graceful degradation preserves the library's current behavior for malformed or missing formatting input.
+> **Why**: Setup data should fail loudly, while request data is user input and
+> should degrade to the best available locale.
 >
-> **Rejected**: Simplistic placeholder engines, custom pluralization helpers that bypass ICU MessageFormat, and hard-failing every malformed localized string in APIs that currently degrade gracefully.
+> **Rejected**: hand-written locale prefix matching, string-only normalization
+> rules, and tying runtime locale selection to whether translations were loaded
+> for that locale.
 
-## Package Layout
+### Fallback Resolution
 
-- `i18n.go` — bundle construction, locale matching, fallback state, MessageFormat compilation, introspection APIs
-- `localizer.go` — lookup and formatting API
-- `loader.go` — `LoadMessages`, `LoadFiles`, `LoadGlob`, `LoadFS`
-- `locale.go` — `Accept-Language` matching via `golang.org/x/text/language`
-- `detector.go` — request locale detection from query, cookie, header, and `Accept-Language`
-- `context.go` — context helpers for `*Localizer`
-- `middleware/` — optional stdlib HTTP middleware
-- `examples/` — user-facing usage examples
+- The direct catalog is the only stored catalog truth.
+- Fallbacks are resolved at lookup time by walking configured fallback chains
+  and trying the default locale last.
+- Fallback traversal must be cycle-safe.
+- `Has` and `Keys` inspect only direct catalog entries.
+- Missing keys return the key text after context suffix trimming where
+  applicable.
 
-> **Why**: The package layout mirrors the public model: bundle setup, locale detection, loading, and localized lookup are separate concerns with small entry points.
+> **Why**: Fallback is a rule, not loaded data. Keeping fallback out of catalog
+> storage makes lookup, diagnostics, and introspection tell the same story.
 >
-> **Rejected**: A monolithic package surface with mixed loading, detection, and transport-specific logic in the same file or type.
+> **Rejected**: fallback-populated catalog maps, inherited keys in `Has` or
+> `Keys`, and fallback behavior that changes localizer matching.
 
-## Quality Standards
+### Formatting
 
-### Error Handling
+- Loaded messages are compiled during load with the configured MessageFormat
+  settings.
+- `Localizer.Get` and `Localizer.Lookup` format compiled translations and return
+  raw message text when runtime formatting fails.
+- `Localizer.Format` is for dynamic messages outside the catalog and returns
+  compile or runtime errors to the caller.
+- Missing-key text may be compiled and cached only as a runtime fallback
+  template.
 
-- Return errors explicitly and wrap underlying failures with `fmt.Errorf("...: %w", err)`.
-- Loading and compilation failures must include actionable context.
-- Missing translations fall back through the configured chain and finally return the key text when no translation exists.
-- Runtime formatting failures preserve the existing graceful fallback to raw text unless an API explicitly returns an error.
-
-### Testing
-
-- Use table-driven tests and `testify/assert` plus `testify/require`.
-- Test exported behavior rather than private fields, except for narrow cache invariants with no public signal.
-- Run `go test -race ./...` for changes touching caches, middleware, or concurrency.
-- Cover direct hit vs fallback vs miss, context-disambiguated keys, MessageFormat formatting, loader behavior, detector source priority, and middleware wiring.
-
-### Performance
-
-- Pre-compile MessageFormat templates during load.
-- Reuse parsed translations and runtime fallback caches.
-- Prefer standard library and Go 1.26 helpers when they simplify code or reduce allocations.
-- Benchmark before adding complexity to hot paths.
-
-> **Why**: The steady-state cost is translation lookup, not configuration. Work should bias toward predictable lookup behavior and precomputation during load.
+> **Why**: Stored translations are the hot path and should pay compile cost at
+> load time. Dynamic messages are caller-owned and can report errors directly.
 >
-> **Rejected**: Recompiling templates on hot paths and adding abstractions before benchmarks justify them.
+> **Rejected**: custom placeholder engines, custom pluralization logic, and
+> recompiling loaded catalog messages on every lookup.
 
-## Dependencies
+### HTTP Boundary
 
-### Core
+- `Detector` resolves locale from query, cookie, explicit header, and
+  `Accept-Language` sources according to configured priority.
+- `middleware.HTTPMiddleware` creates a request-scoped localizer and stores it
+  in context.
+- The core package must not own sessions, profiles, persistence, or
+  framework-specific adapters.
 
-- `github.com/kaptinlin/messageformat-go/v1` — ICU MessageFormat engine
-- `golang.org/x/text/language` — locale parsing and matching
-- `github.com/go-json-experiment/json` — default JSON unmarshaler
+> **Why**: HTTP integration is transport glue. Locale policy beyond request
+> detection belongs to the application.
+>
+> **Rejected**: framework adapters in the core package, session preference
+> stores, and global request locale state.
 
-### Optional Format Support
+## Failure Semantics
 
-- `github.com/goccy/go-yaml`
-- `github.com/pelletier/go-toml/v2`
-- `gopkg.in/ini.v1`
-
-### Test-Only
-
-- `github.com/stretchr/testify`
+- Construction failure returns `nil, error` and creates no usable bundle.
+- Load failure returns an error and leaves the previous direct catalog intact.
+- Read, glob, unmarshal, locale, and MessageFormat compilation errors must
+  include actionable context such as file path, locale, or key.
+- Lookup misses are not errors; they return key text with `Source` set to
+  `missing` and empty `CatalogLocale`.
+- Runtime formatting failure in `Get` or `Lookup` returns raw catalog text.
+- Runtime formatting failure in `Format` returns an error.
 
 ## Forbidden
 
-- Do not introduce global translator state. Use `*Localizer` values derived from `*I18n`.
-- Do not add framework-specific HTTP integrations to the core package. Keep integrations optional under dedicated packages.
-- Do not bypass ICU MessageFormat with custom placeholder or pluralization logic.
-- Do not `panic` in production code. Return wrapped errors instead.
-- Do not add helpers or configuration layers for one call site. Reuse the existing loader, matcher, and localizer paths.
-- Do not work around dependency bugs by reimplementing dependency behavior. Record the problem in `reports/<dependency-name>.md` instead.
+- Do not add global mutable translator state. Use `*I18n` plus derived
+  `*Localizer` values.
+- Do not add alternate constructors or compatibility shims that bypass
+  construction errors.
+- Do not silently ignore invalid construction locales or unconfigured catalog
+  locales.
+- Do not store fallback-populated translations as catalog state.
+- Do not make `Has` or `Keys` include inherited fallback keys.
+- Do not bypass ICU MessageFormat with private interpolation, pluralization, or
+  selector logic.
+- Do not add framework-specific middleware to the core package.
+- Do not add nested catalog shape unless a separate accepted contract replaces
+  the flat `map[string]string` loader model.
+- Do not work around dependency bugs inline; record dependency issues under
+  `reports/` and keep unrelated work moving.
 
 ## Acceptance Criteria
 
-- [ ] `I18n` and `Localizer` remain the primary public workflow for bundle setup and localized lookup.
-- [ ] Locale parsing and matching behavior flows through `golang.org/x/text/language`.
-- [ ] Fallback behavior remains explicit and deterministic across direct hits, fallback hits, and misses.
-- [ ] Localized formatting continues to use ICU MessageFormat with graceful fallback where the API contract already guarantees it.
-- [ ] Loader APIs continue to cover maps, files, glob patterns, and embedded filesystems.
-- [ ] Tests continue to cover locale matching, fallback behavior, loading, formatting, detector priority, and middleware wiring.
-
-**Origin:** Migrated from `CLAUDE.md`.
+- `NewBundle` rejects invalid default locales, supported locales, fallback keys,
+  and fallback values.
+- `LoadMessages`, `LoadFiles`, `LoadGlob`, and `LoadFS` reject invalid or
+  unconfigured catalog locales and preserve the previous catalog on failure.
+- `NewLocalizer` can select a supported locale even before translations are
+  loaded for that locale.
+- Direct, fallback, circular fallback, default fallback, and missing lookup
+  paths are covered through public behavior tests.
+- `Lookup` reports `MatchedLocale`, `CatalogLocale`, and `Source` according to
+  the lookup result invariants.
+- `Has` and `Keys` expose only direct catalog entries.
+- Detector and middleware tests prove request locale detection stays at the HTTP
+  edge.
+- MessageFormat tests prove stored messages compile on load, runtime lookup
+  formatting degrades to raw text, and direct `Format` returns errors.
