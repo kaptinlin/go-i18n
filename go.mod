@@ -6,11 +6,11 @@ require (
 	github.com/go-json-experiment/json v0.0.0-20260601182631-00ed12fed2a6
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-cmp v0.7.0
-	github.com/kaptinlin/messageformat-go/mf1 v0.7.0
-	github.com/pelletier/go-toml/v2 v2.3.1
+	github.com/kaptinlin/messageformat-go/mf1 v0.8.0
+	github.com/pelletier/go-toml/v2 v2.4.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/text v0.37.0
-	gopkg.in/ini.v1 v1.67.2
+	golang.org/x/text v0.38.0
+	gopkg.in/ini.v1 v1.67.3
 )
 
 require (
