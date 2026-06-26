@@ -97,6 +97,21 @@ tasks:
           go work sync
         fi
 
+
+  submodule:update:
+    desc: Init/reset nested git submodules for this repository
+    cmds:
+      - |
+        set -eu
+        if [ ! -f .gitmodules ]; then
+          echo "No nested submodules."
+          exit 0
+        fi
+        git submodule sync --recursive
+        git submodule update --init --recursive --remote --force
+        git submodule foreach --recursive 'git reset --hard && git clean -fd' || true
+        git submodule sync --recursive
+        git submodule update --init --recursive --remote --force
   test:
     desc: Run all tests with race detection
     cmds:

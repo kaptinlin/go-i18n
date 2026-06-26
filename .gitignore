@@ -84,3 +84,4 @@ reports/*
 # Additional .ralphy state
 .ralphy/*.json
 .plans
+.codegraph/
