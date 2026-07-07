@@ -33,9 +33,10 @@ func (l *Localizer) GetX(name, context string, data ...Vars) string {
 	return l.Get(name+" <"+context+">", data...)
 }
 
-// GetTemplate returns the raw MessageFormat template for name after locale
-// matching and fallback resolution. If no loaded translation is found, it
-// returns "", false. This does not trigger formatting.
+// GetTemplate returns the resolved loaded template for name without formatting.
+// The returned template is the raw MessageFormat text from the direct or
+// fallback catalog entry that would supply [Localizer.Get]. If no loaded
+// translation is found, it returns "", false.
 func (l *Localizer) GetTemplate(name string) (string, bool) {
 	resolved := l.resolve(name)
 	if resolved.source == TranslationSourceMissing {

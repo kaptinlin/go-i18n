@@ -10,7 +10,7 @@ For internal contracts and design rules, start with [SPECS/00-overview.md](SPECS
 - **ICU MessageFormat**: Use plural, select, and ordinal formatting through `github.com/kaptinlin/messageformat-go/v1`.
 - **Flexible loading**: Load translations from maps, files, glob patterns, or embedded filesystems.
 - **Deterministic fallbacks**: Resolve fallback chains at lookup time and use the configured default locale as the final fallback.
-- **Lookup details**: Use `Lookup` to get the rendered text, matched locale, catalog locale, and result source.
+- **Lookup details**: Use `Lookup` to get rendered text, the resolved loaded template, matched locale, catalog locale, and result source.
 - **Text and token keys**: Use token keys like `hello_world` or literal text keys with `GetX` context disambiguation.
 - **HTTP integration**: Detect locales from query, cookie, header, or `Accept-Language`, then inject a request-scoped localizer.
 - **Custom unmarshalers**: Keep JSON as the default, or plug in YAML, TOML, or INI parsing.
@@ -91,15 +91,18 @@ fmt.Println(localizer.GetX("Post", "verb"))
 
 ### Inspect fallback behavior
 
-Use `Lookup` when you need to know where a translation came from.
+Use `Lookup` when you need to know where a translation came from and which loaded template supplied it.
 
 ```go
 result := localizer.Lookup("hello", i18n.Vars{"name": "Lin"})
 fmt.Println(result.Text)
+fmt.Println(result.Template)
 fmt.Println(result.MatchedLocale)
 fmt.Println(result.CatalogLocale)
 fmt.Println(result.Source)
 ```
+
+`Template` is the resolved loaded template: the raw MessageFormat text from the direct or fallback catalog entry that supplied `Text`. It is empty when `Source` is `missing`. Use `GetTemplate` when you only need that resolved loaded template without formatting.
 
 `MatchedLocale` is the locale selected for the localizer. `CatalogLocale` is the loaded catalog locale that supplied the text; it is empty when `Source` is `missing`. `TranslationSource` reports one of `direct`, `fallback`, or `missing`.
 

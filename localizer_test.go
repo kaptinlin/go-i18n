@@ -818,6 +818,9 @@ func TestGetTemplate(t *testing.T) {
 	_, ok = loc.GetTemplate("missing")
 	assert.False(t, ok)
 
+	_, ok = loc.GetTemplate("Hello, {name}!")
+	assert.False(t, ok)
+
 	// select is only loaded for en, so zh-Hans falls back to the default locale.
 	tmpl, ok = loc.GetTemplate("select")
 	assert.True(t, ok)
@@ -884,6 +887,14 @@ func TestLookupReturnsTemplate(t *testing.T) {
 	r = loc.Lookup("missing")
 	assert.Empty(t, r.Template)
 	assert.Equal(t, "missing", r.Text)
+	assert.Empty(t, r.CatalogLocale)
+	assert.Equal(t, TranslationSourceMissing, r.Source)
+
+	// Text-key fallback: the key can still be formatted, but it is not a loaded
+	// catalog template.
+	r = loc.Lookup("Hello, {name}!", Vars{"name": "Ada"})
+	assert.Empty(t, r.Template)
+	assert.Equal(t, "Hello, Ada!", r.Text)
 	assert.Empty(t, r.CatalogLocale)
 	assert.Equal(t, TranslationSourceMissing, r.Source)
 }

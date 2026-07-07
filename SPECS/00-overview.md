@@ -58,12 +58,15 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
 - **Definition**: The diagnostic result returned by `Localizer.Lookup`.
 - **Fields**:
   - `Text`: rendered translation text, or the key text on miss.
+  - `Template`: resolved loaded template, meaning the raw MessageFormat text
+    from the direct or fallback catalog entry that supplied `Text`.
   - `MatchedLocale`: the locale selected for the localizer.
   - `CatalogLocale`: the loaded catalog locale that supplied `Text`.
   - `Source`: `direct`, `fallback`, or `missing`.
 - **Invariants**: missing results have an empty `CatalogLocale`; direct results
   use the matched locale as catalog locale; fallback results keep matched and
-  catalog locale distinct when fallback supplied the text.
+  catalog locale distinct when fallback supplied the text; `Template` is empty
+  when `Source` is `missing`.
 
 ## Public API Contracts
 
@@ -130,6 +133,8 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
   and trying the default locale last.
 - Fallback traversal must be cycle-safe.
 - `Has` and `Keys` inspect only direct catalog entries.
+- `Localizer.GetTemplate` resolves direct and fallback catalog entries like
+  `Get`, but returns the raw loaded template without formatting.
 - Missing keys return the key text after context suffix trimming where
   applicable.
 
@@ -145,6 +150,8 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
   settings.
 - `Localizer.Get` and `Localizer.Lookup` format compiled translations and return
   raw message text when runtime formatting fails.
+- `Localizer.GetTemplate` does not format; it returns only the resolved loaded
+  template and reports false when the result would be a missing-key fallback.
 - `Localizer.Format` is for dynamic messages outside the catalog and returns
   compile or runtime errors to the caller.
 - Missing-key text may be compiled and cached only as a runtime fallback
@@ -178,7 +185,7 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
 - Read, glob, unmarshal, locale, and MessageFormat compilation errors must
   include actionable context such as file path, locale, or key.
 - Lookup misses are not errors; they return key text with `Source` set to
-  `missing` and empty `CatalogLocale`.
+  `missing`, empty `CatalogLocale`, and empty `Template`.
 - Runtime formatting failure in `Get` or `Lookup` returns raw catalog text.
 - Runtime formatting failure in `Format` returns an error.
 
@@ -210,8 +217,8 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
   loaded for that locale.
 - Direct, fallback, circular fallback, default fallback, and missing lookup
   paths are covered through public behavior tests.
-- `Lookup` reports `MatchedLocale`, `CatalogLocale`, and `Source` according to
-  the lookup result invariants.
+- `Lookup` reports `Template`, `MatchedLocale`, `CatalogLocale`, and `Source`
+  according to the lookup result invariants.
 - `Has` and `Keys` expose only direct catalog entries.
 - Detector and middleware tests prove request locale detection stays at the HTTP
   edge.

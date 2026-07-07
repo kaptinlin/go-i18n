@@ -17,8 +17,9 @@ type TranslationResult struct {
 	// Text is the translated message, or the key itself if not found.
 	Text string
 
-	// Template is the raw MessageFormat template for the matched translation.
-	// It is empty when Source is TranslationSourceMissing.
+	// Template is the resolved loaded template that supplied Text.
+	// It is the raw MessageFormat text from a direct or fallback catalog entry,
+	// and is empty when Source is TranslationSourceMissing.
 	Template string
 
 	// MatchedLocale is the BCP 47 locale selected for this localizer.
