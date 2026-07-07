@@ -33,21 +33,21 @@ func main() {
 	fmt.Println("=== Lookup Examples ===")
 
 	r := localizer.Lookup("hello", i18n.Vars{"name": "World"})
-	printResult("hello", r)
+	printResult("hello", &r)
 
 	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
-	printResult("goodbye", r)
+	printResult("goodbye", &r)
 
 	r = localizer.Lookup("unknown_key")
-	printResult("unknown_key", r)
+	printResult("unknown_key", &r)
 
 	fmt.Println("\n=== Detecting Fallback vs Direct Hit ===")
 
 	r = localizer.Lookup("hello", i18n.Vars{"name": "World"})
-	printSource("hello", r)
+	printSource("hello", &r)
 
 	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
-	printSource("goodbye", r)
+	printSource("goodbye", &r)
 
 	fmt.Println("\n=== Context Disambiguation ===")
 
@@ -64,19 +64,20 @@ func main() {
 	fmt.Printf("  GetX noun: %s\n", localizer.GetX("Post", "noun"))
 
 	r = localizer.Lookup("Post <verb>")
-	printResult("Post <verb>", r)
+	printResult("Post <verb>", &r)
 }
 
-func printResult(key string, r i18n.TranslationResult) {
+func printResult(key string, r *i18n.TranslationResult) {
 	fmt.Printf("Key: %q\n", key)
 	fmt.Printf("  Text:           %q\n", r.Text)
+	fmt.Printf("  Template:       %q\n", r.Template)
 	fmt.Printf("  Matched locale: %q\n", r.MatchedLocale)
 	fmt.Printf("  Catalog locale: %q\n", r.CatalogLocale)
 	fmt.Printf("  Source:         %q\n", r.Source)
 	fmt.Println()
 }
 
-func printSource(key string, r i18n.TranslationResult) {
+func printSource(key string, r *i18n.TranslationResult) {
 	switch r.Source {
 	case i18n.TranslationSourceMissing:
 		fmt.Printf("  %q: NOT FOUND\n", key)

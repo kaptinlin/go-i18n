@@ -776,3 +776,114 @@ func TestLookupDetectFallbackVsDirect(t *testing.T) {
 	assert.Equal(t, loc.Locale(), r.MatchedLocale)
 	assert.Empty(t, r.CatalogLocale)
 }
+
+func TestGetTemplate(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans", "ja-JP"),
+		WithFallback(map[string][]string{
+			"ja-JP": {"zh-Hans"},
+		}),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {
+			"hello":   "Hello, {name}!",
+			"escaped": "Use '{count}' literally.",
+			"select":  "{gender, select, female {She} male {He} other {They}} liked this.",
+		},
+		"zh-Hans": {
+			"hello":       "你好，{name}！",
+			"escaped":     "按字面使用 '{count}'。",
+			"Post <verb>": "发表",
+		},
+		"ja-JP": {},
+	}))
+
+	loc := bundle.NewLocalizer("zh-Hans")
+
+	tmpl, ok := loc.GetTemplate("hello")
+	assert.True(t, ok)
+	assert.Equal(t, "你好，{name}！", tmpl)
+
+	tmpl, ok = loc.GetTemplate("escaped")
+	assert.True(t, ok)
+	assert.Equal(t, "按字面使用 '{count}'。", tmpl)
+
+	tmpl, ok = loc.GetTemplate("Post <verb>")
+	assert.True(t, ok)
+	assert.Equal(t, "发表", tmpl)
+
+	_, ok = loc.GetTemplate("missing")
+	assert.False(t, ok)
+
+	// select is only loaded for en, so zh-Hans falls back to the default locale.
+	tmpl, ok = loc.GetTemplate("select")
+	assert.True(t, ok)
+	assert.Equal(t, "{gender, select, female {She} male {He} other {They}} liked this.", tmpl)
+}
+
+func TestLookupReturnsTemplate(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en", "zh-Hans", "ja-JP"),
+		WithFallback(map[string][]string{
+			"ja-JP": {"zh-Hans"},
+		}),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {
+			"hello":   "Hello, {name}!",
+			"escaped": "Use '{count}' literally.",
+			"select":  "{gender, select, female {She} male {He} other {They}} liked this.",
+		},
+		"zh-Hans": {
+			"hello":       "你好，{name}！",
+			"escaped":     "按字面使用 '{count}'。",
+			"Post <verb>": "发表",
+		},
+		"ja-JP": {},
+	}))
+
+	loc := bundle.NewLocalizer("ja-JP")
+
+	// Simple placeholder: Template stays raw even when Text is formatted with vars.
+	r := loc.Lookup("hello", Vars{"name": "Ada"})
+	assert.Equal(t, "你好，Ada！", r.Text)
+	assert.Equal(t, "你好，{name}！", r.Template)
+	assert.Equal(t, "zh-Hans", r.CatalogLocale)
+	assert.Equal(t, TranslationSourceFallback, r.Source)
+
+	// Escaped literal: Template preserves quotes; Text unescapes them.
+	r = loc.Lookup("escaped")
+	assert.Equal(t, "按字面使用 '{count}'。", r.Template)
+	assert.Equal(t, "按字面使用 {count}。", r.Text)
+	assert.Equal(t, "zh-Hans", r.CatalogLocale)
+	assert.Equal(t, TranslationSourceFallback, r.Source)
+
+	// select is only loaded for en, so the ja-JP localizer falls back to the
+	// default locale. Without a gender argument the other branch is used;
+	// Template stays raw.
+	r = loc.Lookup("select")
+	assert.Equal(t, "{gender, select, female {She} male {He} other {They}} liked this.", r.Template)
+	assert.Equal(t, "They liked this.", r.Text)
+	assert.Equal(t, "en", r.CatalogLocale)
+	assert.Equal(t, TranslationSourceFallback, r.Source)
+
+	// Context key.
+	r = loc.Lookup("Post <verb>")
+	assert.Equal(t, "发表", r.Template)
+	assert.Equal(t, "发表", r.Text)
+	assert.Equal(t, "zh-Hans", r.CatalogLocale)
+	assert.Equal(t, TranslationSourceFallback, r.Source)
+
+	// Missing: Template is empty.
+	r = loc.Lookup("missing")
+	assert.Empty(t, r.Template)
+	assert.Equal(t, "missing", r.Text)
+	assert.Empty(t, r.CatalogLocale)
+	assert.Equal(t, TranslationSourceMissing, r.Source)
+}
