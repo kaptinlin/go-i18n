@@ -1,5 +1,7 @@
 package i18n
 
+import "fmt"
+
 // Localizer provides translation methods for a specific locale. Create one
 // via [I18n.NewLocalizer].
 type Localizer struct {
@@ -22,8 +24,8 @@ func (l *Localizer) Locale() string {
 // Get returns the translation for name with optional MessageFormat variables.
 // Returns name as fallback if no translation is found.
 func (l *Localizer) Get(name string, data ...Vars) string {
-	resolved := l.resolve(name)
-	return l.localize(resolved.translation, data...)
+	result, _ := l.lookup(name, data...)
+	return result.Text
 }
 
 // GetX returns the translation for name disambiguated by context.
@@ -45,12 +47,19 @@ func (l *Localizer) GetTemplate(name string) (string, bool) {
 	return resolved.translation.text, true
 }
 
-// Lookup returns the translation for name with full lookup details.
-// Use [Localizer.Get] for the common case where only the text is needed.
-func (l *Localizer) Lookup(name string, data ...Vars) TranslationResult {
+// Lookup returns the translation for name with full lookup details. If a
+// loaded translation cannot be formatted, the result contains its raw template
+// and provenance alongside the formatting error. A missing translation is not
+// an error. Use [Localizer.Get] for the forgiving string-only path.
+func (l *Localizer) Lookup(name string, data ...Vars) (TranslationResult, error) {
+	return l.lookup(name, data...)
+}
+
+func (l *Localizer) lookup(name string, data ...Vars) (TranslationResult, error) {
 	resolved := l.resolve(name)
+	text, err := l.localize(resolved.translation, data...)
 	result := TranslationResult{
-		Text:          l.localize(resolved.translation, data...),
+		Text:          text,
 		MatchedLocale: resolved.matchedLocale,
 		CatalogLocale: resolved.catalogLocale,
 		Source:        resolved.source,
@@ -58,11 +67,21 @@ func (l *Localizer) Lookup(name string, data ...Vars) TranslationResult {
 	if resolved.source != TranslationSourceMissing {
 		result.Template = resolved.translation.text
 	}
-	return result
+	if resolved.source == TranslationSourceMissing {
+		return result, nil
+	}
+	if err != nil {
+		err = fmt.Errorf(
+			"format translation for locale %q key %q: %w",
+			resolved.catalogLocale, name, err,
+		)
+	}
+	return result, err
 }
 
 func (l *Localizer) resolve(name string) resolvedTranslation {
-	if pt, ok := l.bundle.directTranslations[l.locale][name]; ok {
+	translations := l.bundle.catalogSnapshot()
+	if pt, ok := translations[l.locale][name]; ok {
 		return resolvedTranslation{
 			translation:   pt,
 			source:        TranslationSourceDirect,
@@ -70,7 +89,7 @@ func (l *Localizer) resolve(name string) resolvedTranslation {
 			catalogLocale: pt.locale,
 		}
 	}
-	if pt := l.bundle.lookupFallback(l.locale, name); pt != nil {
+	if pt := l.bundle.lookupFallback(translations, l.locale, name); pt != nil {
 		return resolvedTranslation{
 			translation:   pt,
 			source:        TranslationSourceFallback,
@@ -79,22 +98,22 @@ func (l *Localizer) resolve(name string) resolvedTranslation {
 		}
 	}
 	return resolvedTranslation{
-		translation:   l.bundle.getRuntimeParsedTranslation(name),
+		translation:   l.bundle.runtimeFallbackTranslation(name),
 		source:        TranslationSourceMissing,
 		matchedLocale: l.locale,
 	}
 }
 
-func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) string {
+func (l *Localizer) localize(pt *parsedTranslation, data ...Vars) (string, error) {
 	if pt.format == nil {
-		return pt.text
+		return pt.text, nil
 	}
 
 	result, err := formatCompiled(pt.format, data)
 	if err != nil {
-		return pt.text
+		return pt.text, err
 	}
-	return result
+	return result, nil
 }
 
 // Format compiles and formats a MessageFormat message directly.

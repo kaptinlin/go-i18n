@@ -46,6 +46,19 @@ Key files and directories:
 - `result.go` — `TranslationResult` and `TranslationSource`
 - `examples/` — runnable usage examples
 
+## Agent Operating Rules
+
+- Read the relevant SPECS and adjacent tests before changing behavior.
+- Reproduce bugs through the caller-visible path before editing implementation.
+- Use one behavior-focused vertical slice at a time: RED, GREEN, then refactor.
+- Prefer the standard library, current dependencies, and existing package helpers before adding code.
+- Apply KISS, DRY, and YAGNI without weakening validation, errors, or tests.
+- Keep edits scoped to the requested contract and preserve unrelated worktree changes.
+- Resolve conflicting evidence explicitly; fail loudly when a required contract is unclear.
+- Match verification to the changed behavior and run the repository gates before shipping.
+- Do not add policy-only scripts that merely restate README, AGENTS, or SPECS prose.
+- Do not add tests that mirror spec wording when behavior tests already prove the contract.
+
 ## Design Philosophy
 
 - **KISS** — Keep shared translation state in `I18n` and request-specific work in `Localizer`.
@@ -96,9 +109,13 @@ When you encounter a bug, limitation, or unexpected behavior in a dependency lib
 
 - Use the Go version declared in `go.mod` and features when they simplify code without obscuring behavior.
 - Keep locale parsing and matching on `golang.org/x/text/language`.
-- Keep `github.com/kaptinlin/messageformat-go/v1` as the MessageFormat dependency; this package currently targets ICU MessageFormat v1 syntax and semantics, not the MessageFormat 2.0 mainline.
-- Keep the module graph on a release that still ships the `v1` compatibility package.
-- Keep loaded translations effectively immutable after load; only runtime caches may mutate under synchronization.
+- Keep `github.com/kaptinlin/messageformat-go/mf1` as the MessageFormat dependency; this package currently targets ICU MessageFormat v1 syntax and semantics, not the MessageFormat 2.0 mainline.
+- Keep the module graph on a release that still ships the `mf1` compatibility package.
+- Publish loaded translations as immutable catalog generations under the bundle's synchronization owner; do not retain missing-key state.
+- Reject duplicate canonical locale/key declarations within one load batch; allow disjoint fragments and replacement across separate successful loads.
+- Treat bundle and Detector setup as strict trust boundaries; reject invalid or nil setup instead of filtering it silently.
+- Keep request locale data forgiving, and parse all `Accept-Language` field values as one weighted preference list.
+- Construct HTTP Detector and Localizer state from the same bundle and return middleware setup errors before serving requests.
 - Keep translation lookup Localizer-centric; `I18n` owns shared state and locale matching.
 - Reuse the existing `Option` helpers for configuration before adding new public knobs.
 - Use table-driven tests with `assert` and `require`, and call `t.Parallel()` when the test is safe to parallelize.
@@ -114,6 +131,7 @@ See [SPECS/00-overview.md](SPECS/00-overview.md) for the locale model, fallback 
 - Do not bypass ICU MessageFormat with custom placeholder or pluralization logic.
 - Do not switch to the unversioned `github.com/kaptinlin/messageformat-go` MessageFormat 2.0 API unless the repository has been explicitly migrated off ICU MessageFormat v1 syntax end-to-end.
 - Do not encode spec prose as constants, enums, or helpers that no runtime code consumes.
+- Do not create policy-only gates or spec-mirror tests; prove runtime contracts through behavior.
 - Do not work around dependency bugs inline; use `reports/<dependency-name>.md` instead.
 - Do not `panic` in package code; return wrapped errors instead.
 
@@ -128,7 +146,7 @@ See [SPECS/00-overview.md](SPECS/00-overview.md) for the locale model, fallback 
 
 Core dependencies:
 
-- `github.com/kaptinlin/messageformat-go/v1` — ICU MessageFormat engine
+- `github.com/kaptinlin/messageformat-go/mf1` — ICU MessageFormat engine
 - `golang.org/x/text/language` — locale parsing and matching
 - `github.com/go-json-experiment/json` — default JSON unmarshaler
 
@@ -147,7 +165,8 @@ Use the most specific matching skill before falling back to a generic repository
 |---|---|
 | `go-i18n-localizing` | Adding or reviewing loaders, locale handling, lookup behavior, or middleware-facing localization flows. |
 | `library-docs-maintaining` | Refreshing `README.md`, `CLAUDE.md`, and the `AGENTS.md` symlink. |
-| `library-specs-maintaining` | Updating `SPECS/` to match current package contracts. |
+| `library-specs-maintaining` | Consolidating scattered design documents into `SPECS/`. |
+| `spec-writing` | Updating the existing durable package contract under `SPECS/`. |
 | `library-test-covering` | Expanding coverage for loaders, lookup, locale detection, or middleware behavior. |
 | `library-error-optimizing` | Tightening error messages and error wrapping. |
 | `library-panic-optimizing` | Removing panics from package code. |

@@ -2,6 +2,9 @@ package i18n
 
 import (
 	"embed"
+	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -43,6 +46,90 @@ func TestLoadMessages(t *testing.T) {
 
 	assert.Equal("这是一则测试讯息。", localizer.Get("test_message"))
 	assert.Equal("not_exists_message", localizer.Get("not_exists_message"))
+}
+
+func TestCatalogLoadAndReadAreSafeConcurrently(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en", "ja-JP"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":    {"fallback": "Fallback"},
+		"ja-JP": {"direct": "Direct"},
+	}))
+	localizer := bundle.NewLocalizer("ja-JP")
+
+	start := make(chan struct{})
+	errs := make(chan error, 1)
+	var workers sync.WaitGroup
+	workers.Go(func() {
+		<-start
+		for range 500 {
+			if err := bundle.LoadMessages(map[string]map[string]string{
+				"en":    {"fallback": "Fallback", "loaded": "Loaded"},
+				"ja-JP": {"direct": "Direct"},
+			}); err != nil {
+				errs <- err
+				return
+			}
+		}
+	})
+	for range 8 {
+		workers.Go(func() {
+			<-start
+			for range 500 {
+				_ = localizer.Get("direct")
+				_ = localizer.Get("fallback")
+				_, _ = localizer.Lookup("fallback")
+				_ = bundle.Has("en", "loaded")
+				_ = bundle.Keys("ja-JP")
+			}
+		})
+	}
+
+	close(start)
+	workers.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+}
+
+func TestConcurrentCatalogWritersRetainSuccessfulLoads(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+
+	const writerCount = 100
+	start := make(chan struct{})
+	errs := make(chan error, writerCount)
+	var writers sync.WaitGroup
+	for n := range writerCount {
+		writers.Go(func() {
+			<-start
+			key := fmt.Sprintf("key_%03d", n)
+			errs <- bundle.LoadMessages(map[string]map[string]string{
+				"en": {key: key},
+			})
+		})
+	}
+
+	close(start)
+	writers.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	for n := range writerCount {
+		key := fmt.Sprintf("key_%03d", n)
+		assert.True(t, bundle.Has("en", key))
+		assert.Equal(t, key, bundle.NewLocalizer("en").Get(key))
+	}
 }
 
 func TestUnmarshaler(t *testing.T) {
@@ -175,6 +262,29 @@ func TestWithMessageFormatOptionsClonesInput(t *testing.T) {
 	result, err := bundle.NewLocalizer("en").Format("Hello, {name, upper}!", Vars{"name": "ignored"})
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello, ORIGINAL!", result)
+}
+
+func TestNewBundleRejectsNonStringMessageFormatReturnType(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := NewBundle(WithMessageFormatOptions(&mf.MessageFormatOptions{
+		ReturnType: mf.ReturnTypeValues,
+	}))
+
+	assert.Nil(t, bundle)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errors.ErrUnsupported)
+}
+
+func TestNewBundleAcceptsStringMessageFormatReturnType(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := NewBundle(WithMessageFormatOptions(&mf.MessageFormatOptions{
+		ReturnType: mf.ReturnTypeString,
+	}))
+
+	require.NoError(t, err)
+	assert.NotNil(t, bundle)
 }
 
 func TestWithCustomFormattersClonesInput(t *testing.T) {
@@ -550,13 +660,10 @@ func TestNewBundleRejectsInvalidLocaleConfiguration(t *testing.T) {
 	}
 }
 
-func TestCircularFallback(t *testing.T) {
+func TestNewBundleRejectsCyclicFallback(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-
-	// Circular fallback: ja-JP -> ko-KR -> ja-JP should not infinite loop.
-	bundle := newTestBundle(t,
+	bundle, err := NewBundle(
 		WithDefaultLocale("en"),
 		WithLocales("en", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{
@@ -564,15 +671,84 @@ func TestCircularFallback(t *testing.T) {
 			"ko-KR": {"ja-JP"},
 		}),
 	)
-	assert.NoError(bundle.LoadMessages(map[string]map[string]string{
-		"en":    {"hello": "Hello"},
-		"ja-JP": {},
-		"ko-KR": {},
-	}))
 
-	localizer := bundle.NewLocalizer("ja-JP")
-	// Should fall through to default locale without hanging.
-	assert.Equal("Hello", localizer.Get("hello"))
+	assert.Nil(t, bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ja-JP -> ko-KR -> ja-JP")
+}
+
+func TestNewBundleRejectsDuplicateCanonicalFallbackTarget(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "fr"),
+		WithFallback(map[string][]string{
+			"en": {"fr", "FR"},
+		}),
+	)
+
+	assert.Nil(t, bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `fallback locale "en" has duplicate target "fr"`)
+}
+
+func TestNewBundleRejectsCanonicalFallbackSourceCollision(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := NewBundle(
+		WithDefaultLocale("en"),
+		WithLocales("en", "fr"),
+		WithFallback(map[string][]string{
+			"EN": {"fr"},
+			"en": {},
+		}),
+	)
+
+	assert.Nil(t, bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `fallback keys "EN" and "en" resolve to locale "en"`)
+}
+
+func TestNewBundleRejectsSelfAndLongFallbackCycles(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		fallbacks map[string][]string
+		wantPath  string
+	}{
+		{
+			name:      "self edge",
+			fallbacks: map[string][]string{"ja-JP": {"ja-JP"}},
+			wantPath:  "ja-JP -> ja-JP",
+		},
+		{
+			name: "long cycle",
+			fallbacks: map[string][]string{
+				"ja-JP":   {"ko-KR"},
+				"ko-KR":   {"zh-Hans"},
+				"zh-Hans": {"ja-JP"},
+			},
+			wantPath: "ja-JP -> ko-KR -> zh-Hans -> ja-JP",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			bundle, err := NewBundle(
+				WithDefaultLocale("en"),
+				WithLocales("en", "ja-JP", "ko-KR", "zh-Hans"),
+				WithFallback(tt.fallbacks),
+			)
+
+			assert.Nil(t, bundle)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantPath)
+		})
+	}
 }
 
 func TestRecursiveFallbackUsesFirstAvailableTranslation(t *testing.T) {
@@ -660,7 +836,7 @@ func TestFallbackChainUsesConfiguredLocaleWhenDefaultLacksKey(t *testing.T) {
 	}))
 
 	localizer := bundle.NewLocalizer("ja-JP")
-	result := localizer.Lookup("regional", Vars{"name": "Ada"})
+	result := mustLookup(t, localizer, "regional", Vars{"name": "Ada"})
 
 	assert.Equal(t, "你好，Ada!", result.Text)
 	assert.Equal(t, "ja-JP", result.MatchedLocale)
@@ -689,7 +865,7 @@ func TestFallbackChainRecomputesWhenFallbackLocaleLoadsLater(t *testing.T) {
 		"zh-Hans": {"shared": "中文"},
 	}))
 
-	result := bundle.NewLocalizer("ja-JP").Lookup("shared")
+	result := mustLookup(t, bundle.NewLocalizer("ja-JP"), "shared")
 	assert.Equal(t, "中文", result.Text)
 	assert.Equal(t, "ja-JP", result.MatchedLocale)
 	assert.Equal(t, "zh-Hans", result.CatalogLocale)
@@ -718,13 +894,13 @@ func TestLookupFallbackChainReportsConfiguredLocaleBeforeDefault(t *testing.T) {
 
 	localizer := bundle.NewLocalizer("ja-JP")
 
-	configured := localizer.Lookup("shared")
+	configured := mustLookup(t, localizer, "shared")
 	assert.Equal(t, "中文", configured.Text)
 	assert.Equal(t, "ja-JP", configured.MatchedLocale)
 	assert.Equal(t, "zh-Hans", configured.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, configured.Source)
 
-	defaulted := localizer.Lookup("default_only")
+	defaulted := mustLookup(t, localizer, "default_only")
 	assert.Equal(t, "Default only", defaulted.Text)
 	assert.Equal(t, "ja-JP", defaulted.MatchedLocale)
 	assert.Equal(t, "en", defaulted.CatalogLocale)
@@ -748,7 +924,7 @@ func TestLookupInvalidMessageFormat(t *testing.T) {
 
 	// Trigger runtime fallback with invalid MessageFormat syntax.
 	// The key itself will be used as text; compilation fails gracefully.
-	r := localizer.Lookup("{invalid syntax")
+	r := mustLookup(t, localizer, "{invalid syntax")
 	assert.Equal("{invalid syntax", r.Text)
 	assert.Equal("zh-Hans", r.MatchedLocale)
 	assert.Empty(r.CatalogLocale)

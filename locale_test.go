@@ -71,6 +71,24 @@ func TestMatchAvailableLocale(t *testing.T) {
 			wantText:   "こんにちは世界",
 		},
 		{
+			name:       "multiple headers use global quality order",
+			accepts:    []string{"zh;q=0.1", "ja;q=0.9"},
+			wantLocale: "ja-JP",
+			wantText:   "こんにちは世界",
+		},
+		{
+			name:       "zero quality entry is ignored across headers",
+			accepts:    []string{"zh;q=0", "ja;q=0.5"},
+			wantLocale: "ja-JP",
+			wantText:   "こんにちは世界",
+		},
+		{
+			name:       "equal quality preserves first header order",
+			accepts:    []string{"zh;q=0.8", "ja;q=0.8"},
+			wantLocale: "zh-Hans",
+			wantText:   "你好，世界",
+		},
+		{
 			name:       "no arguments falls back to default",
 			accepts:    nil,
 			wantLocale: "en",

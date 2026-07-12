@@ -32,16 +32,15 @@ type bundleConfig struct {
 // I18n is the main internationalization bundle that manages translations,
 // locales, and fallback chains.
 type I18n struct {
-	defaultLocale             string
-	defaultLanguage           language.Tag
-	languages                 []language.Tag
-	unmarshaler               Unmarshaler
-	languageMatcher           language.Matcher
-	fallbacks                 map[string][]string
-	directTranslations        map[string]map[string]*parsedTranslation
-	runtimeParsedTranslations map[string]*parsedTranslation
-	runtimeTranslationsMu     sync.RWMutex
-	messageFormat             messageFormatter
+	defaultLocale      string
+	defaultLanguage    language.Tag
+	languages          []language.Tag
+	unmarshaler        Unmarshaler
+	languageMatcher    language.Matcher
+	fallbacks          map[string][]string
+	catalogMu          sync.RWMutex
+	directTranslations map[string]map[string]*parsedTranslation
+	messageFormat      messageFormatter
 }
 
 type parsedTranslation struct {
@@ -64,7 +63,8 @@ func WithUnmarshaler(u Unmarshaler) Option {
 
 // WithFallback configures locale fallback chains. Each key is a locale, and
 // its value is an ordered list of fallback locales to try when a translation
-// is missing. The default locale is used as the final fallback.
+// is missing. The default locale is used as the final fallback. NewBundle
+// rejects duplicate canonical declarations and fallback cycles.
 func WithFallback(f map[string][]string) Option {
 	return func(cfg *bundleConfig) {
 		if f == nil {
@@ -104,6 +104,9 @@ func NewBundle(options ...Option) (*I18n, error) {
 	for _, o := range options {
 		o(&cfg)
 	}
+	if err := cfg.messageFormat.validate(); err != nil {
+		return nil, err
+	}
 
 	languages, defaultLanguage, err := buildLanguages(cfg)
 	if err != nil {
@@ -111,13 +114,12 @@ func NewBundle(options ...Option) (*I18n, error) {
 	}
 
 	i := &I18n{
-		defaultLocale:             defaultLanguage.String(),
-		defaultLanguage:           defaultLanguage,
-		languages:                 languages,
-		unmarshaler:               cfg.unmarshaler,
-		directTranslations:        make(map[string]map[string]*parsedTranslation),
-		runtimeParsedTranslations: make(map[string]*parsedTranslation),
-		messageFormat:             cfg.messageFormat,
+		defaultLocale:      defaultLanguage.String(),
+		defaultLanguage:    defaultLanguage,
+		languages:          languages,
+		unmarshaler:        cfg.unmarshaler,
+		directTranslations: make(map[string]map[string]*parsedTranslation),
+		messageFormat:      cfg.messageFormat,
 	}
 	i.languageMatcher = language.NewMatcher(i.languages)
 
@@ -175,23 +177,31 @@ func (i *I18n) SupportedLocales() []language.Tag {
 // Has reports whether key is defined directly for locale in the loaded bundle
 // state. Fallback-populated keys are not included.
 func (i *I18n) Has(locale, key string) bool {
-	resolved, ok := i.resolveLocaleForTable(locale, i.directTranslations, false)
+	translations := i.catalogSnapshot()
+	resolved, ok := i.resolveLocaleForTable(locale, translations, false)
 	if !ok {
 		return false
 	}
-	translations := i.directTranslations[resolved]
-	_, ok = translations[key]
+	_, ok = translations[resolved][key]
 	return ok
 }
 
 // Keys returns the sorted keys defined directly for locale in the loaded
 // bundle state. Fallback-populated keys are not included.
 func (i *I18n) Keys(locale string) []string {
-	resolved, ok := i.resolveLocaleForTable(locale, i.directTranslations, false)
+	translations := i.catalogSnapshot()
+	resolved, ok := i.resolveLocaleForTable(locale, translations, false)
 	if !ok {
 		return nil
 	}
-	return slices.Sorted(maps.Keys(i.directTranslations[resolved]))
+	return slices.Sorted(maps.Keys(translations[resolved]))
+}
+
+func (i *I18n) catalogSnapshot() map[string]map[string]*parsedTranslation {
+	i.catalogMu.RLock()
+	translations := i.directTranslations
+	i.catalogMu.RUnlock()
+	return translations
 }
 
 func (i *I18n) resolveLocaleForTable(
@@ -322,27 +332,6 @@ func nameInsensitive(v string) string {
 	return strings.ToLower(strings.ReplaceAll(v, "_", "-"))
 }
 
-func (i *I18n) getRuntimeParsedTranslation(name string) *parsedTranslation {
-	i.runtimeTranslationsMu.RLock()
-	pt := i.runtimeParsedTranslations[name]
-	i.runtimeTranslationsMu.RUnlock()
-	if pt != nil {
-		return pt
-	}
-
-	i.runtimeTranslationsMu.Lock()
-	defer i.runtimeTranslationsMu.Unlock()
-
-	pt = i.runtimeParsedTranslations[name]
-	if pt != nil {
-		return pt
-	}
-
-	pt = i.runtimeFallbackTranslation(name)
-	i.runtimeParsedTranslations[name] = pt
-	return pt
-}
-
 func (i *I18n) runtimeFallbackTranslation(name string) *parsedTranslation {
 	text := trimContext(name)
 	pt, err := i.parseTranslation(i.defaultLocale, name, text)
@@ -352,7 +341,9 @@ func (i *I18n) runtimeFallbackTranslation(name string) *parsedTranslation {
 	return &parsedTranslation{locale: i.defaultLocale, name: name, text: text}
 }
 
-func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
+func (i *I18n) lookupFallback(
+	translations map[string]map[string]*parsedTranslation, locale, name string,
+) *parsedTranslation {
 	fallbacks := i.fallbacks[locale]
 	visited := map[string]struct{}{locale: {}}
 	stack := make([]string, 0, len(fallbacks))
@@ -368,7 +359,7 @@ func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 		}
 		visited[locale] = struct{}{}
 
-		if pt, ok := i.directTranslations[locale][name]; ok {
+		if pt, ok := translations[locale][name]; ok {
 			return pt
 		}
 		fallbacks = i.fallbacks[locale]
@@ -380,7 +371,7 @@ func (i *I18n) lookupFallback(locale, name string) *parsedTranslation {
 	if _, ok := visited[i.defaultLocale]; ok {
 		return nil
 	}
-	return i.directTranslations[i.defaultLocale][name]
+	return translations[i.defaultLocale][name]
 }
 
 func (i *I18n) resolveLoadLocale(locale string) (string, error) {
@@ -398,23 +389,85 @@ func (i *I18n) resolveLoadLocale(locale string) (string, error) {
 
 func (i *I18n) normalizeFallbacks(raw map[string][]string) (map[string][]string, error) {
 	fallbacks := make(map[string][]string, len(raw))
-	for locale, chain := range raw {
+	sources := make(map[string]string, len(raw))
+	for _, locale := range slices.Sorted(maps.Keys(raw)) {
+		chain := raw[locale]
 		matched, err := i.resolveFallbackLocale("fallback key", locale)
 		if err != nil {
 			return nil, err
 		}
+		if previous, ok := sources[matched]; ok {
+			return nil, fmt.Errorf(
+				"fallback keys %q and %q resolve to locale %q",
+				previous, locale, matched,
+			)
+		}
+		sources[matched] = locale
 
 		normalized := make([]string, 0, len(chain))
+		seen := make(map[string]struct{}, len(chain))
 		for _, fallback := range chain {
 			matchedFallback, err := i.resolveFallbackLocale("fallback value", fallback)
 			if err != nil {
 				return nil, err
 			}
+			if _, ok := seen[matchedFallback]; ok {
+				return nil, fmt.Errorf(
+					"fallback locale %q has duplicate target %q",
+					matched, matchedFallback,
+				)
+			}
+			seen[matchedFallback] = struct{}{}
 			normalized = append(normalized, matchedFallback)
 		}
 		fallbacks[matched] = normalized
 	}
+	if err := validateFallbackCycles(fallbacks); err != nil {
+		return nil, err
+	}
 	return fallbacks, nil
+}
+
+func validateFallbackCycles(fallbacks map[string][]string) error {
+	const (
+		visiting = 1
+		visited  = 2
+	)
+
+	states := make(map[string]int, len(fallbacks))
+	path := make([]string, 0, len(fallbacks))
+	var visit func(string) error
+	visit = func(locale string) error {
+		states[locale] = visiting
+		path = append(path, locale)
+		defer func() { path = path[:len(path)-1] }()
+
+		for _, fallback := range fallbacks[locale] {
+			switch states[fallback] {
+			case visiting:
+				start := slices.Index(path, fallback)
+				cycle := append(slices.Clone(path[start:]), fallback)
+				return fmt.Errorf("fallback cycle: %s", strings.Join(cycle, " -> "))
+			case visited:
+				continue
+			}
+			if err := visit(fallback); err != nil {
+				return err
+			}
+		}
+		states[locale] = visited
+		return nil
+	}
+
+	for _, locale := range slices.Sorted(maps.Keys(fallbacks)) {
+		if states[locale] == visited {
+			continue
+		}
+		if err := visit(locale); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (i *I18n) resolveFallbackLocale(kind, locale string) (string, error) {

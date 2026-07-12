@@ -57,6 +57,109 @@ func TestLoadFS(t *testing.T) {
 	assert.Equal(t, "讯息 C", localizer.Get("message_c"))
 }
 
+func TestLoadFSRejectsDuplicateCanonicalLocaleKeyDeclarations(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{
+		"locales/zh-Hans.base.json":  &fstest.MapFile{Data: []byte(`{"shared":"first","new":"new"}`)},
+		"locales/zh_Hans.extra.json": &fstest.MapFile{Data: []byte(`{"shared":"second"}`)},
+	}
+	bundle := newTestBundle(t,
+		WithDefaultLocale("zh-Hans"),
+		WithLocales("zh-Hans"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"zh-Hans": {"keep": "kept"},
+	}))
+
+	err := bundle.LoadFS(fsys, "locales/*.json")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `locale "zh-Hans" key "shared"`)
+	assert.Contains(t, err.Error(), `"locales/zh-Hans.base.json"`)
+	assert.Contains(t, err.Error(), `"locales/zh_Hans.extra.json"`)
+	assert.Equal(t, "kept", bundle.NewLocalizer("zh-Hans").Get("keep"))
+	assert.False(t, bundle.Has("zh-Hans", "new"))
+	assert.False(t, bundle.Has("zh-Hans", "shared"))
+}
+
+func TestLoadFSAllowsReplacementAcrossCalls(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{
+		"locales/en.base.json":  &fstest.MapFile{Data: []byte(`{"shared":"first"}`)},
+		"locales/en.extra.json": &fstest.MapFile{Data: []byte(`{"shared":"second"}`)},
+	}
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+
+	require.NoError(t, bundle.LoadFS(fsys, "locales/en.base.json"))
+	require.NoError(t, bundle.LoadFS(fsys, "locales/en.extra.json"))
+	assert.Equal(t, "second", bundle.NewLocalizer("en").Get("shared"))
+}
+
+func TestLoadMessagesRejectsDuplicateCanonicalLocaleKeyDeclarations(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("zh-Hans"),
+		WithLocales("zh-Hans"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"zh-Hans": {"keep": "kept"},
+	}))
+
+	err := bundle.LoadMessages(map[string]map[string]string{
+		"ZH_HANS": {
+			"new":    "new",
+			"shared": "first",
+		},
+		"zh_Hans": {"shared": "second"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `locale "zh-Hans" key "shared"`)
+	assert.Contains(t, err.Error(), `"ZH_HANS"`)
+	assert.Contains(t, err.Error(), `"zh_Hans"`)
+	assert.Equal(t, "kept", bundle.NewLocalizer("zh-Hans").Get("keep"))
+	assert.False(t, bundle.Has("zh-Hans", "new"))
+	assert.False(t, bundle.Has("zh-Hans", "shared"))
+}
+
+func TestLoadMessagesAllowsDisjointCanonicalLocaleAliases(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("zh-Hans"),
+		WithLocales("zh-Hans"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"zh-Hans": {"first": "first"},
+		"zh_Hans": {"second": "second"},
+	}))
+
+	localizer := bundle.NewLocalizer("zh-Hans")
+	assert.Equal(t, "first", localizer.Get("first"))
+	assert.Equal(t, "second", localizer.Get("second"))
+}
+
+func TestLoadMessagesAllowsReplacementAcrossCalls(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"shared": "first"},
+	}))
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"shared": "second"},
+	}))
+
+	assert.Equal(t, "second", bundle.NewLocalizer("en").Get("shared"))
+}
+
 func TestLoadFilesReadError(t *testing.T) {
 	t.Parallel()
 
@@ -130,6 +233,23 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 	err := bundle.LoadFS(fsys, "[")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, path.ErrBadPattern)
+}
+
+func TestLoadFSNilFilesystemReturnsError(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+
+	var err error
+	require.NotPanics(t, func() {
+		err = bundle.LoadFS(nil, "*.json")
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, fs.ErrInvalid)
+	assert.Contains(t, err.Error(), "load translations from filesystem")
 }
 
 func TestLoadFSRejectsUnmatchedFileLocale(t *testing.T) {

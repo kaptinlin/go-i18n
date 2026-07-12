@@ -2,6 +2,7 @@ package i18n
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -61,6 +62,13 @@ func newTestLocalizer(tb testing.TB) *Localizer {
 	)
 	require.NoError(tb, bundle.LoadMessages(testTranslations))
 	return bundle.NewLocalizer("zh-Hans")
+}
+
+func mustLookup(tb testing.TB, localizer *Localizer, name string, data ...Vars) TranslationResult {
+	tb.Helper()
+	result, err := localizer.Lookup(name, data...)
+	require.NoError(tb, err)
+	return result
 }
 
 func TestTokenString(t *testing.T) {
@@ -381,6 +389,71 @@ func TestGetFallsBackToRawTextWhenRequiredArgumentIsMissing(t *testing.T) {
 	assert.Equal(t, "Hello, {name}!", loc.Get("hello"))
 }
 
+func TestLookupReportsRuntimeFormatError(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"hello": "Hello, {name}!"},
+	}))
+
+	result, err := bundle.NewLocalizer("en").Lookup("hello")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, mf.ErrMissingArgument)
+	assert.Contains(t, err.Error(), `locale "en" key "hello"`)
+	assert.Equal(t, "Hello, {name}!", result.Text)
+	assert.Equal(t, "Hello, {name}!", result.Template)
+	assert.Equal(t, "en", result.MatchedLocale)
+	assert.Equal(t, "en", result.CatalogLocale)
+	assert.Equal(t, TranslationSourceDirect, result.Source)
+}
+
+func TestLookupReportsFallbackRuntimeFormatError(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en", "ja-JP"),
+		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en":    {"hello": "Hello, {name}!"},
+		"ja-JP": {},
+	}))
+	localizer := bundle.NewLocalizer("ja-JP")
+
+	result, err := localizer.Lookup("hello")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, mf.ErrMissingArgument)
+	assert.Contains(t, err.Error(), `locale "en" key "hello"`)
+	assert.Equal(t, "Hello, {name}!", result.Text)
+	assert.Equal(t, "Hello, {name}!", result.Template)
+	assert.Equal(t, "ja-JP", result.MatchedLocale)
+	assert.Equal(t, "en", result.CatalogLocale)
+	assert.Equal(t, TranslationSourceFallback, result.Source)
+	assert.Equal(t, result.Text, localizer.Get("hello"))
+}
+
+func TestLookupMissingTemplateFormattingFailureIsNotAnError(t *testing.T) {
+	t.Parallel()
+
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
+	)
+
+	result, err := bundle.NewLocalizer("en").Lookup("Hello, {name}!")
+	require.NoError(t, err)
+	assert.Equal(t, "Hello, {name}!", result.Text)
+	assert.Empty(t, result.Template)
+	assert.Empty(t, result.CatalogLocale)
+	assert.Equal(t, TranslationSourceMissing, result.Source)
+}
+
 func TestGetUsesAllProvidedVars(t *testing.T) {
 	t.Parallel()
 
@@ -507,54 +580,6 @@ func TestFormatInvalidLocalizerLocaleReturnsError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestFormatStringerFallbackForNonStringResult(t *testing.T) {
-	t.Parallel()
-
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithCustomFormatters(map[string]any{
-			"countWords": func(value any, locale string, arg *string) any {
-				return []string{"one", "two"}
-			},
-		}),
-	)
-	loc := bundle.NewLocalizer("en")
-
-	result, err := loc.Format("{name, countWords}", Vars{"name": "ignored"})
-	require.NoError(t, err)
-	assert.Equal(t, "[one two]", result)
-}
-
-func TestFormatStringifiesValueReturnType(t *testing.T) {
-	t.Parallel()
-
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithMessageFormatOptions(&mf.MessageFormatOptions{ReturnType: mf.ReturnTypeValues}),
-	)
-	loc := bundle.NewLocalizer("en")
-
-	result, err := loc.Format("Hello {name}!", Vars{"name": "Ada"})
-	require.NoError(t, err)
-	assert.Equal(t, "[Hello  Ada !]", result)
-}
-
-func TestGetStringifiesValueReturnType(t *testing.T) {
-	t.Parallel()
-
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-		WithMessageFormatOptions(&mf.MessageFormatOptions{ReturnType: mf.ReturnTypeValues}),
-	)
-	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
-		"en": {"hello": "Hello {name}!"},
-	}))
-
-	loc := bundle.NewLocalizer("en")
-	assert.Equal(t, "[Hello  Ada !]", loc.Get("hello", Vars{"name": "Ada"}))
-}
-
 func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 	t.Parallel()
 
@@ -582,7 +607,7 @@ func TestGetRuntimeFallbackReturnsRawTextForInvalidMessageFormat(t *testing.T) {
 	assert.Equal(t, "{invalid syntax", loc.Get("{invalid syntax"))
 }
 
-func TestGetCachesRuntimeFallbackByBehavior(t *testing.T) {
+func TestMissingFallbackIsStableAcrossLookups(t *testing.T) {
 	t.Parallel()
 
 	bundle := newTestBundle(t,
@@ -597,6 +622,39 @@ func TestGetCachesRuntimeFallbackByBehavior(t *testing.T) {
 	loc := bundle.NewLocalizer("zh-Hans")
 	assert.Equal(t, "Goodbye", loc.Get("Goodbye"))
 	assert.Equal(t, "Goodbye", loc.Get("Goodbye"))
+}
+
+func TestMissingLookupsDoNotRetainHighCardinalityInput(t *testing.T) {
+	bundle := newTestBundle(t,
+		WithDefaultLocale("en"),
+		WithLocales("en"),
+	)
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{"en": {}}))
+	localizer := bundle.NewLocalizer("en")
+
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	exerciseUniqueMissingLookups(localizer, 64, 64<<10)
+
+	runtime.GC()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	runtime.KeepAlive(bundle)
+
+	var retained uint64
+	if after.HeapAlloc > before.HeapAlloc {
+		retained = after.HeapAlloc - before.HeapAlloc
+	}
+	assert.Less(t, retained, uint64(2<<20), "missing lookups retained %d bytes", retained)
+}
+
+func exerciseUniqueMissingLookups(localizer *Localizer, count, keySize int) {
+	payload := strings.Repeat("x", keySize)
+	for n := range count {
+		_ = localizer.Get(fmt.Sprintf("%04d:%s", n, payload))
+	}
 }
 
 func TestGetRuntimeFallbackIsSafeForConcurrentReads(t *testing.T) {
@@ -643,19 +701,19 @@ func TestLookup(t *testing.T) {
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
-	r := loc.Lookup("hello")
+	r := mustLookup(t, loc, "hello")
 	assert.Equal(t, "你好", r.Text)
 	assert.Equal(t, "zh-Hans", r.MatchedLocale)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceDirect, r.Source)
 
-	r = loc.Lookup("bye")
+	r = mustLookup(t, loc, "bye")
 	assert.Equal(t, "Goodbye", r.Text)
 	assert.Equal(t, "zh-Hans", r.MatchedLocale)
 	assert.Equal(t, "en", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, r.Source)
 
-	r = loc.Lookup("nonexistent")
+	r = mustLookup(t, loc, "nonexistent")
 	assert.Equal(t, "nonexistent", r.Text)
 	assert.Equal(t, "zh-Hans", r.MatchedLocale)
 	assert.Empty(t, r.CatalogLocale)
@@ -676,13 +734,13 @@ func TestLookupContext(t *testing.T) {
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
-	r := loc.Lookup("Post <verb>")
+	r := mustLookup(t, loc, "Post <verb>")
 	assert.Equal(t, "发表", r.Text)
 	assert.Equal(t, "zh-Hans", r.MatchedLocale)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceDirect, r.Source)
 
-	r = loc.Lookup("Post <noun>")
+	r = mustLookup(t, loc, "Post <noun>")
 	assert.Equal(t, "帖子", r.Text)
 	assert.Equal(t, "zh-Hans", r.MatchedLocale)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
@@ -707,13 +765,13 @@ func TestLookupFallbackChain(t *testing.T) {
 
 	loc := bundle.NewLocalizer("ja-JP")
 
-	r := loc.Lookup("hello")
+	r := mustLookup(t, loc, "hello")
 	assert.Equal(t, "こんにちは", r.Text)
 	assert.Equal(t, "ja-JP", r.MatchedLocale)
 	assert.Equal(t, "ja-JP", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceDirect, r.Source)
 
-	r = loc.Lookup("shared_key")
+	r = mustLookup(t, loc, "shared_key")
 	assert.Equal(t, "Chinese", r.Text)
 	assert.Equal(t, "ja-JP", r.MatchedLocale)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
@@ -734,13 +792,13 @@ func TestLookupWithVars(t *testing.T) {
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
-	r := loc.Lookup("greeting", Vars{"name": "World"})
+	r := mustLookup(t, loc, "greeting", Vars{"name": "World"})
 	assert.Equal(t, "你好，World！", r.Text)
 	assert.Equal(t, "zh-Hans", r.MatchedLocale)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceDirect, r.Source)
 
-	r = loc.Lookup("unknown", Vars{"name": "Test"})
+	r = mustLookup(t, loc, "unknown", Vars{"name": "Test"})
 	assert.Equal(t, "unknown", r.Text)
 	assert.Equal(t, "zh-Hans", r.MatchedLocale)
 	assert.Empty(t, r.CatalogLocale)
@@ -761,17 +819,17 @@ func TestLookupDetectFallbackVsDirect(t *testing.T) {
 
 	loc := bundle.NewLocalizer("zh-Hans")
 
-	r := loc.Lookup("hello")
+	r := mustLookup(t, loc, "hello")
 	assert.Equal(t, TranslationSourceDirect, r.Source)
 	assert.Equal(t, loc.Locale(), r.MatchedLocale)
 	assert.Equal(t, loc.Locale(), r.CatalogLocale)
 
-	r = loc.Lookup("only_en")
+	r = mustLookup(t, loc, "only_en")
 	assert.Equal(t, TranslationSourceFallback, r.Source)
 	assert.Equal(t, loc.Locale(), r.MatchedLocale)
 	assert.NotEqual(t, loc.Locale(), r.CatalogLocale)
 
-	r = loc.Lookup("nonexistent")
+	r = mustLookup(t, loc, "nonexistent")
 	assert.Equal(t, TranslationSourceMissing, r.Source)
 	assert.Equal(t, loc.Locale(), r.MatchedLocale)
 	assert.Empty(t, r.CatalogLocale)
@@ -854,14 +912,14 @@ func TestLookupReturnsTemplate(t *testing.T) {
 	loc := bundle.NewLocalizer("ja-JP")
 
 	// Simple placeholder: Template stays raw even when Text is formatted with vars.
-	r := loc.Lookup("hello", Vars{"name": "Ada"})
+	r := mustLookup(t, loc, "hello", Vars{"name": "Ada"})
 	assert.Equal(t, "你好，Ada！", r.Text)
 	assert.Equal(t, "你好，{name}！", r.Template)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, r.Source)
 
 	// Escaped literal: Template preserves quotes; Text unescapes them.
-	r = loc.Lookup("escaped")
+	r = mustLookup(t, loc, "escaped")
 	assert.Equal(t, "按字面使用 '{count}'。", r.Template)
 	assert.Equal(t, "按字面使用 {count}。", r.Text)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
@@ -870,21 +928,21 @@ func TestLookupReturnsTemplate(t *testing.T) {
 	// select is only loaded for en, so the ja-JP localizer falls back to the
 	// default locale. Without a gender argument the other branch is used;
 	// Template stays raw.
-	r = loc.Lookup("select")
+	r = mustLookup(t, loc, "select")
 	assert.Equal(t, "{gender, select, female {She} male {He} other {They}} liked this.", r.Template)
 	assert.Equal(t, "They liked this.", r.Text)
 	assert.Equal(t, "en", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, r.Source)
 
 	// Context key.
-	r = loc.Lookup("Post <verb>")
+	r = mustLookup(t, loc, "Post <verb>")
 	assert.Equal(t, "发表", r.Template)
 	assert.Equal(t, "发表", r.Text)
 	assert.Equal(t, "zh-Hans", r.CatalogLocale)
 	assert.Equal(t, TranslationSourceFallback, r.Source)
 
 	// Missing: Template is empty.
-	r = loc.Lookup("missing")
+	r = mustLookup(t, loc, "missing")
 	assert.Empty(t, r.Template)
 	assert.Equal(t, "missing", r.Text)
 	assert.Empty(t, r.CatalogLocale)
@@ -892,7 +950,7 @@ func TestLookupReturnsTemplate(t *testing.T) {
 
 	// Text-key fallback: the key can still be formatted, but it is not a loaded
 	// catalog template.
-	r = loc.Lookup("Hello, {name}!", Vars{"name": "Ada"})
+	r = mustLookup(t, loc, "Hello, {name}!", Vars{"name": "Ada"})
 	assert.Empty(t, r.Template)
 	assert.Equal(t, "Hello, Ada!", r.Text)
 	assert.Empty(t, r.CatalogLocale)

@@ -39,7 +39,8 @@ type messageFormatter struct {
 	options *mf.MessageFormatOptions
 }
 
-// WithMessageFormatOptions sets MessageFormat options for the bundle.
+// WithMessageFormatOptions sets MessageFormat options for the bundle. Because
+// go-i18n renders strings, NewBundle rejects ReturnTypeValues.
 func WithMessageFormatOptions(opts *mf.MessageFormatOptions) Option {
 	return func(cfg *bundleConfig) {
 		cfg.messageFormat.setOptions(opts)
@@ -78,6 +79,13 @@ func (f *messageFormatter) ensureOptions() *mf.MessageFormatOptions {
 		f.options = &mf.MessageFormatOptions{}
 	}
 	return f.options
+}
+
+func (f *messageFormatter) validate() error {
+	if f.options == nil || f.options.ReturnType == "" || f.options.ReturnType == mf.ReturnTypeString {
+		return nil
+	}
+	return fmt.Errorf("messageformat return type %q: %w", f.options.ReturnType, errors.ErrUnsupported)
 }
 
 func cloneMessageFormatOptions(opts *mf.MessageFormatOptions) *mf.MessageFormatOptions {
@@ -146,14 +154,10 @@ func formatCompiled(format messageFunction, data []Vars) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return stringifyMessageResult(result), nil
-}
-
-func stringifyMessageResult(result any) string {
 	if str, ok := result.(string); ok {
-		return str
+		return str, nil
 	}
-	return fmt.Sprintf("%v", result)
+	return "", fmt.Errorf("messageformat result type %T: %w", result, errors.ErrUnsupported)
 }
 
 func varsToParams(vars []Vars) any {

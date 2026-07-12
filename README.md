@@ -7,8 +7,8 @@ For internal contracts and design rules, start with [SPECS/00-overview.md](SPECS
 
 ## Features
 
-- **ICU MessageFormat**: Use plural, select, and ordinal formatting through `github.com/kaptinlin/messageformat-go/v1`.
-- **Flexible loading**: Load translations from maps, files, glob patterns, or embedded filesystems.
+- **ICU MessageFormat**: Use plural, select, and ordinal formatting through `github.com/kaptinlin/messageformat-go/mf1`.
+- **Atomic loading**: Load maps, files, glob patterns, or embedded filesystems as immutable catalog generations safe for concurrent readers.
 - **Deterministic fallbacks**: Resolve fallback chains at lookup time and use the configured default locale as the final fallback.
 - **Lookup details**: Use `Lookup` to get rendered text, the resolved loaded template, matched locale, catalog locale, and result source.
 - **Text and token keys**: Use token keys like `hello_world` or literal text keys with `GetX` context disambiguation.
@@ -63,6 +63,9 @@ func main() {
 
 - `NewBundle` constructs the shared translation bundle and returns an error for invalid locale configuration.
 - `WithDefaultLocale`, `WithLocales`, `WithFallback`, `WithUnmarshaler`, `WithMessageFormatOptions`, `WithCustomFormatters`, and `WithStrictMode` configure bundle behavior.
+- `WithMessageFormatOptions` accepts only the default/string return mode;
+  `NewBundle` rejects values/parts mode because every rendering API returns a
+  string.
 - `NewLocalizer` picks the first supported locale match from its arguments, then falls back to the default locale.
 - `SupportedLocales` and `IsLanguageSupported` expose the configured locale matcher state.
 
@@ -77,6 +80,10 @@ Use the loader that matches your source of truth:
 
 Translation file names are normalized to locales, so names like `zh_Hans.json` and `zh-Hans.user.json` still resolve to `zh-Hans`.
 Configured locale mistakes fail loudly: invalid construction locales make `NewBundle` return an error, and loading an unconfigured map locale or file locale returns an error without changing the existing catalog.
+Within one `LoadMessages` or file-loader call, locale aliases or fragments may
+declare disjoint keys; repeating a key for the same canonical locale makes the
+whole batch fail. File-loader errors identify both source paths. A later
+successful loader call may intentionally replace an existing key.
 
 ### Render translations
 
@@ -94,7 +101,10 @@ fmt.Println(localizer.GetX("Post", "verb"))
 Use `Lookup` when you need to know where a translation came from and which loaded template supplied it.
 
 ```go
-result := localizer.Lookup("hello", i18n.Vars{"name": "Lin"})
+result, err := localizer.Lookup("hello", i18n.Vars{"name": "Lin"})
+if err != nil {
+	log.Printf("render translation: %v", err)
+}
 fmt.Println(result.Text)
 fmt.Println(result.Template)
 fmt.Println(result.MatchedLocale)
@@ -106,6 +116,10 @@ fmt.Println(result.Source)
 
 `MatchedLocale` is the locale selected for the localizer. `CatalogLocale` is the loaded catalog locale that supplied the text; it is empty when `Source` is `missing`. `TranslationSource` reports one of `direct`, `fallback`, or `missing`.
 
+If a loaded template cannot be formatted, `Lookup` returns its raw text and
+provenance together with a wrapped error. A missing translation is not an error.
+Use `Get` when raw fallback without error handling is the desired behavior.
+
 Use `Has` and `Keys` for direct locale contents only. They do not include inherited fallback keys.
 
 ### Detect request locales
@@ -113,7 +127,7 @@ Use `Has` and `Keys` for direct locale contents only. They do not include inheri
 Use `NewDetector` to resolve the best locale from HTTP request inputs.
 
 ```go
-detector := i18n.NewDetector(
+detector, err := i18n.NewDetector(
 	bundle,
 	i18n.WithDetectorPriority(
 		i18n.DetectorSourceQuery,
@@ -122,13 +136,23 @@ detector := i18n.NewDetector(
 		i18n.DetectorSourceAccept,
 	),
 )
+if err != nil {
+	return err
+}
 
 locale := detector.DetectLocale(r)
 localizer := bundle.NewLocalizer(locale)
 ```
 
 Use `WithDetectorQueryParam`, `WithDetectorCookieName`, and `WithDetectorHeaderName` to customize source names.
-Use `MatchAvailableLocale` when you only need `Accept-Language` matching.
+`NewDetector` rejects a nil bundle, a nil option, or an unknown priority source
+at setup; empty priority input keeps the default source order.
+Use `MatchAvailableLocale` when you only need `Accept-Language` matching. Pass
+all header field values so their quality weights are evaluated together:
+
+```go
+locale := bundle.MatchAvailableLocale(r.Header.Values("Accept-Language")...)
+```
 
 ### Inject a localizer into `net/http`
 
@@ -139,6 +163,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/kaptinlin/go-i18n"
@@ -148,13 +173,22 @@ import (
 func main() {
 	bundle, err := i18n.NewBundle(i18n.WithDefaultLocale("en"), i18n.WithLocales("en", "zh-Hans"))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	_ = bundle.LoadMessages(map[string]map[string]string{
+	if err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello"},
-	})
+	}); err != nil {
+		log.Fatal(err)
+	}
 
-	handler := middleware.HTTPMiddleware(bundle)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	localize, err := middleware.HTTPMiddleware(
+		bundle,
+		i18n.WithDetectorPriority(i18n.DetectorSourceAccept),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	handler := localize(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		localizer, ok := i18n.LocalizerFromContext(r.Context())
 		if !ok {
 			http.Error(w, "missing localizer", http.StatusInternalServerError)
@@ -163,7 +197,7 @@ func main() {
 		fmt.Fprint(w, localizer.Get("hello"))
 	}))
 
-	http.ListenAndServe(":8080", handler)
+	log.Fatal(http.ListenAndServe(":8080", handler))
 }
 ```
 
@@ -172,7 +206,11 @@ func main() {
 JSON is the default. Override it when your translation files use another format.
 
 ```go
-import "github.com/goccy/go-yaml"
+import (
+	"log"
+
+	"github.com/goccy/go-yaml"
+)
 
 bundle, err := i18n.NewBundle(
 	i18n.WithDefaultLocale("en"),
@@ -180,7 +218,7 @@ bundle, err := i18n.NewBundle(
 	i18n.WithUnmarshaler(yaml.Unmarshal),
 )
 if err != nil {
-	panic(err)
+	log.Fatal(err)
 }
 ```
 

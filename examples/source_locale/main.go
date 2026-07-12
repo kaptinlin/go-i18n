@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/kaptinlin/go-i18n"
 )
@@ -32,21 +33,21 @@ func main() {
 
 	fmt.Println("=== Lookup Examples ===")
 
-	r := localizer.Lookup("hello", i18n.Vars{"name": "World"})
+	r := mustLookup(localizer, "hello", i18n.Vars{"name": "World"})
 	printResult("hello", &r)
 
-	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
+	r = mustLookup(localizer, "goodbye", i18n.Vars{"name": "World"})
 	printResult("goodbye", &r)
 
-	r = localizer.Lookup("unknown_key")
+	r = mustLookup(localizer, "unknown_key")
 	printResult("unknown_key", &r)
 
 	fmt.Println("\n=== Detecting Fallback vs Direct Hit ===")
 
-	r = localizer.Lookup("hello", i18n.Vars{"name": "World"})
+	r = mustLookup(localizer, "hello", i18n.Vars{"name": "World"})
 	printSource("hello", &r)
 
-	r = localizer.Lookup("goodbye", i18n.Vars{"name": "World"})
+	r = mustLookup(localizer, "goodbye", i18n.Vars{"name": "World"})
 	printSource("goodbye", &r)
 
 	fmt.Println("\n=== Context Disambiguation ===")
@@ -63,8 +64,16 @@ func main() {
 	fmt.Printf("  GetX verb: %s\n", localizer.GetX("Post", "verb"))
 	fmt.Printf("  GetX noun: %s\n", localizer.GetX("Post", "noun"))
 
-	r = localizer.Lookup("Post <verb>")
+	r = mustLookup(localizer, "Post <verb>")
 	printResult("Post <verb>", &r)
+}
+
+func mustLookup(localizer *i18n.Localizer, key string, data ...i18n.Vars) i18n.TranslationResult {
+	result, err := localizer.Lookup(key, data...)
+	if err != nil {
+		log.Fatalf("lookup %q: %v", key, err)
+	}
+	return result
 }
 
 func printResult(key string, r *i18n.TranslationResult) {

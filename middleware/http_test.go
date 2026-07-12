@@ -25,7 +25,10 @@ func TestHTTPMiddleware(t *testing.T) {
 		"ja-JP":   {"hello": "こんにちは"},
 	}))
 
-	h := HTTPMiddleware(bundle)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	localize, err := HTTPMiddleware(bundle)
+	require.NoError(t, err)
+
+	h := localize(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, ok := i18n.LocalizerFromContext(r.Context())
 		require.True(t, ok)
 		_, _ = w.Write([]byte(loc.Locale() + ":" + loc.Get("hello")))
@@ -38,7 +41,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	assert.Equal(t, "ja-JP:こんにちは", rr.Body.String())
 }
 
-func TestHTTPMiddlewareWithCustomDetector(t *testing.T) {
+func TestHTTPMiddlewareWithDetectorOptions(t *testing.T) {
 	t.Parallel()
 
 	bundle, err := i18n.NewBundle(
@@ -52,8 +55,14 @@ func TestHTTPMiddlewareWithCustomDetector(t *testing.T) {
 		"ja-JP":   {"hello": "こんにちは"},
 	}))
 
-	detector := i18n.NewDetector(bundle, i18n.WithDetectorPriority(i18n.DetectorSourceHeader), i18n.WithDetectorHeaderName("X-Locale"))
-	h := HTTPMiddleware(bundle, WithDetector(detector))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	localize, err := HTTPMiddleware(
+		bundle,
+		i18n.WithDetectorPriority(i18n.DetectorSourceHeader),
+		i18n.WithDetectorHeaderName("X-Locale"),
+	)
+	require.NoError(t, err)
+
+	h := localize(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		loc, ok := i18n.LocalizerFromContext(r.Context())
 		require.True(t, ok)
 		_, _ = w.Write([]byte(loc.Locale()))
@@ -67,29 +76,35 @@ func TestHTTPMiddlewareWithCustomDetector(t *testing.T) {
 	assert.Equal(t, "ja-JP", rr.Body.String())
 }
 
-func TestHTTPMiddlewareWithNilDetectorFallsBackToDefault(t *testing.T) {
+func TestHTTPMiddlewareRejectsInvalidDetectorSetup(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
-	)
+	bundle, err := i18n.NewBundle(i18n.WithDefaultLocale("en"))
 	require.NoError(t, err)
-	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
-		"en":      {"hello": "Hello"},
-		"zh-Hans": {"hello": "你好"},
-		"ja-JP":   {"hello": "こんにちは"},
-	}))
 
-	h := HTTPMiddleware(bundle, WithDetector(nil))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		loc, ok := i18n.LocalizerFromContext(r.Context())
-		require.True(t, ok)
-		_, _ = w.Write([]byte(loc.Locale()))
-	}))
+	tests := []struct {
+		name   string
+		bundle *i18n.I18n
+		opts   []i18n.DetectorOption
+		want   string
+	}{
+		{name: "nil bundle", want: "bundle"},
+		{
+			name:   "unknown priority source",
+			bundle: bundle,
+			opts:   []i18n.DetectorOption{i18n.WithDetectorPriority(i18n.DetectorSource("bad"))},
+			want:   `"bad"`,
+		},
+	}
 
-	req := httptest.NewRequest(http.MethodGet, "/?lang=ja", nil)
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	assert.Equal(t, "ja-JP", rr.Body.String())
+			localize, err := HTTPMiddleware(tt.bundle, tt.opts...)
+			require.Error(t, err)
+			assert.Nil(t, localize)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
 }

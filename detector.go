@@ -1,6 +1,8 @@
 package i18n
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 )
@@ -19,8 +21,8 @@ const (
 	DetectorSourceAccept DetectorSource = "accept-language"
 )
 
-// DetectorOption configures a [Detector].
-type DetectorOption func(*Detector)
+// DetectorOption configures a [Detector] during [NewDetector].
+type DetectorOption func(*Detector) error
 
 // Detector resolves the best locale for an HTTP request.
 type Detector struct {
@@ -31,8 +33,14 @@ type Detector struct {
 	headerName string
 }
 
-// NewDetector creates a request locale detector for the given bundle.
-func NewDetector(bundle *I18n, opts ...DetectorOption) *Detector {
+// NewDetector creates a request locale detector for the given bundle. It
+// returns an error for a nil bundle, a nil option, or an unknown priority
+// source.
+func NewDetector(bundle *I18n, opts ...DetectorOption) (*Detector, error) {
+	if bundle == nil {
+		return nil, errors.New("detector bundle is nil")
+	}
+
 	d := &Detector{
 		bundle:     bundle,
 		priority:   []DetectorSource{DetectorSourceQuery, DetectorSourceCookie, DetectorSourceHeader, DetectorSourceAccept},
@@ -41,47 +49,56 @@ func NewDetector(bundle *I18n, opts ...DetectorOption) *Detector {
 		headerName: "X-Language",
 	}
 	for _, opt := range opts {
-		opt(d)
+		if opt == nil {
+			return nil, errors.New("detector option is nil")
+		}
+		if err := opt(d); err != nil {
+			return nil, err
+		}
 	}
-	return d
+	return d, nil
 }
 
-// WithDetectorPriority sets the detector source priority.
+// WithDetectorPriority sets the detector source priority. An empty priority
+// keeps the default order. NewDetector rejects unknown sources.
 func WithDetectorPriority(priority ...DetectorSource) DetectorOption {
-	return func(d *Detector) {
+	return func(d *Detector) error {
 		if len(priority) == 0 {
-			return
+			return nil
 		}
 
-		sanitized := slices.DeleteFunc(slices.Clone(priority), func(source DetectorSource) bool {
-			return !source.isValid()
-		})
-		if len(sanitized) == 0 {
-			return
+		for _, source := range priority {
+			if !source.isValid() {
+				return fmt.Errorf("detector priority source %q is invalid", source)
+			}
 		}
 
-		d.priority = sanitized
+		d.priority = slices.Clone(priority)
+		return nil
 	}
 }
 
 // WithDetectorQueryParam sets the query parameter name for locale detection.
 func WithDetectorQueryParam(name string) DetectorOption {
-	return func(d *Detector) {
+	return func(d *Detector) error {
 		d.queryParam = name
+		return nil
 	}
 }
 
 // WithDetectorCookieName sets the cookie name for locale detection.
 func WithDetectorCookieName(name string) DetectorOption {
-	return func(d *Detector) {
+	return func(d *Detector) error {
 		d.cookieName = name
+		return nil
 	}
 }
 
 // WithDetectorHeaderName sets the header name for locale detection.
 func WithDetectorHeaderName(name string) DetectorOption {
-	return func(d *Detector) {
+	return func(d *Detector) error {
 		d.headerName = name
+		return nil
 	}
 }
 
@@ -140,11 +157,12 @@ func (d *Detector) detectHeader(r *http.Request) string {
 }
 
 func (d *Detector) detectAcceptLanguage(r *http.Request) string {
-	value := r.Header.Get("Accept-Language")
-	if value == "" {
+	values := r.Header.Values("Accept-Language")
+	if len(values) == 0 {
 		return ""
 	}
-	return d.bundle.MatchAvailableLocale(value)
+	locale, _ := d.bundle.matchAvailableLocale(values...)
+	return locale
 }
 
 func (d *Detector) resolveExplicitLocale(locale string) string {
