@@ -76,16 +76,21 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
 
 ### Construction
 
-- `NewBundle(options ...Option) (*I18n, error)` is the only bundle constructor.
-- `WithDefaultLocale`, `WithLocales`, and `WithFallback` participate in a single
-  locale validation contract.
+- `NewBundle(defaultLocale string, options ...Option) (*I18n, error)` is the
+  only bundle constructor.
+- The required default locale, `WithLocales`, and `WithFallback` participate in
+  a single locale validation contract.
 - Invalid or empty locale tags are construction errors.
 - Fallback keys and fallback values must resolve exactly to configured
   supported locales.
 - Canonical fallback source declarations and each source's target list must be
   unique, and the resulting fallback graph must be acyclic.
-- If no default locale is supplied, the first supported locale is the default.
-  If no locales are supplied, English is the default supported locale.
+- The default locale cannot be an explicit fallback source or target; the
+  bundle owns it as the final fallback after every explicit candidate.
+- The default locale is explicit, automatically supported, and appears exactly
+  once at the start of `SupportedLocales`.
+- `WithLocales` declares additional locales; canonical duplicates, including a
+  repeated default locale, are construction errors.
 - `Option` configures construction state; it must not mutate a partially
   constructed bundle.
 - `NewDetector(bundle, options...) (*Detector, error)` rejects a nil bundle,
@@ -166,6 +171,8 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
   package exposes only string rendering APIs.
 - Loaded messages are compiled during load with the configured MessageFormat
   settings.
+- The complete canonical locale reaches the MessageFormat dependency; the
+  adapter must not discard region or script subtags before that boundary.
 - `Localizer.Get` formats compiled translations and returns raw message text
   when runtime formatting fails. `Localizer.Lookup` returns the same raw result
   and provenance together with the wrapped formatting error.
@@ -208,6 +215,8 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
 - `LoadFS` rejects a nil filesystem with an error wrapping `fs.ErrInvalid`.
 - Read, glob, unmarshal, locale, and MessageFormat compilation errors must
   include actionable context such as file path, locale, or key.
+- A file MessageFormat compilation error includes its exact source path,
+  canonical locale, and key while preserving the wrapped compilation cause.
 - Lookup misses are not errors; they return key text with `Source` set to
   `missing`, empty `CatalogLocale`, and empty `Template`.
 - Runtime formatting failure in `Get` returns raw catalog text. The same
@@ -236,6 +245,8 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
 
 - `NewBundle` rejects invalid default locales, supported locales, fallback keys,
   and fallback values.
+- `NewBundle` rejects nil options, canonical duplicate supported locales, and
+  any fallback graph that names the default locale as a source or target.
 - `LoadMessages`, `LoadFiles`, `LoadGlob`, and `LoadFS` reject invalid or
   unconfigured catalog locales and preserve the previous catalog on failure.
 - Programmatic and file-based batches reject duplicate canonical locale/key
@@ -256,4 +267,8 @@ rules. `Localizer` owns one matched-locale view over that state. Optional
   sources; unsupported request locales still fall through to later sources.
 - Accept-Language tests prove global quality ordering across all field values.
 - MessageFormat tests prove stored messages compile on load, runtime lookup
-  formatting degrades to raw text, and direct `Format` returns errors.
+  formatting degrades to raw text, direct `Format` returns errors, and regional
+  locale identity remains observable where CLDR rules differ.
+- File loader tests prove MessageFormat compilation errors retain the exact
+  source path, canonical locale, key, and wrapped compilation cause without
+  publishing any part of the failed batch.

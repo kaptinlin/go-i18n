@@ -45,6 +45,7 @@ Key files and directories:
 - `middleware/http.go` — optional stdlib HTTP middleware
 - `result.go` — `TranslationResult` and `TranslationSource`
 - `examples/` — runnable usage examples
+- `.references/` — pinned upstream implementations used as design evidence, not package contracts
 
 ## Agent Operating Rules
 
@@ -83,9 +84,11 @@ If the requested change would alter those contracts, update the spec first or as
 ### Implementation Phase — Follow Current Package Patterns
 
 1. Read the adjacent package files and matching tests before editing code.
-2. Reuse the existing option-based API shape instead of adding parallel constructors or config layers.
-3. Keep request-scoped behavior in `Detector`, context helpers, or `middleware/`, not in global package state.
-4. Use package-local skills from `.agents/skills/` when they match the task.
+2. For API or architecture changes, inspect at least two relevant projects from the References Index when available; state when no relevant reference exists.
+3. Reuse the existing option-based API shape instead of adding parallel constructors or config layers.
+4. Keep request-scoped behavior in `Detector`, context helpers, or `middleware/`, not in global package state.
+5. Treat references as evidence for boundary choices, not authority to copy their syntax, compatibility policy, or internal architecture.
+6. Use package-local skills from `.agents/skills/` when they match the task.
 
 ## Dependency Issue Reporting
 
@@ -103,6 +106,14 @@ When you encounter a bug, limitation, or unexpected behavior in a dependency lib
 |---|---|---|
 | Overview | `SPECS/00-overview.md` | Package boundary, locale model, fallback rules, architecture, and quality constraints |
 
+## References Index
+
+| Reference | Path | Use for |
+|---|---|---|
+| Fluent | `.references/fluent-js/` | Locale negotiation and formatter-boundary comparison |
+| nicksnyder/go-i18n | `.references/nicksnyder-go-i18n/` | Explicit bundle defaults and translation resource provenance |
+| universal-translator | `.references/universal-translator/` | Fallback ownership and translator boundary comparison |
+
 ## Coding Rules
 
 ### Must Follow
@@ -113,6 +124,9 @@ When you encounter a bug, limitation, or unexpected behavior in a dependency lib
 - Keep the module graph on a release that still ships the `mf1` compatibility package.
 - Publish loaded translations as immutable catalog generations under the bundle's synchronization owner; do not retain missing-key state.
 - Reject duplicate canonical locale/key declarations within one load batch; allow disjoint fragments and replacement across separate successful loads.
+- Require the default locale as the first `NewBundle` argument; it is automatically supported and must not be repeated in `WithLocales` or the explicit fallback graph.
+- Preserve complete canonical locale tags through the MessageFormat boundary, including region and script subtags.
+- Preserve exact source paths through file decoding and MessageFormat compilation errors.
 - Treat bundle and Detector setup as strict trust boundaries; reject invalid or nil setup instead of filtering it silently.
 - Keep request locale data forgiving, and parse all `Accept-Language` field values as one weighted preference list.
 - Construct HTTP Detector and Localizer state from the same bundle and return middleware setup errors before serving requests.

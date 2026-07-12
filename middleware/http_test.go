@@ -14,9 +14,8 @@ import (
 func TestHTTPMiddleware(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
+	bundle, err := i18n.NewBundle("en",
+		i18n.WithLocales("zh-Hans", "ja-JP"),
 	)
 	require.NoError(t, err)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
@@ -44,9 +43,8 @@ func TestHTTPMiddleware(t *testing.T) {
 func TestHTTPMiddlewareWithDetectorOptions(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans", "ja-JP"),
+	bundle, err := i18n.NewBundle("en",
+		i18n.WithLocales("zh-Hans", "ja-JP"),
 	)
 	require.NoError(t, err)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
@@ -79,7 +77,7 @@ func TestHTTPMiddlewareWithDetectorOptions(t *testing.T) {
 func TestHTTPMiddlewareRejectsInvalidDetectorSetup(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := i18n.NewBundle(i18n.WithDefaultLocale("en"))
+	bundle, err := i18n.NewBundle("en")
 	require.NoError(t, err)
 
 	tests := []struct {

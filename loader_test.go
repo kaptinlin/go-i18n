@@ -3,6 +3,7 @@ package i18n
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"testing"
@@ -15,10 +16,7 @@ import (
 func TestLoadFiles(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("zh-Hans"),
-	)
+	bundle := newTestBundle(t, "zh-Hans")
 	require.NoError(t, bundle.LoadFiles("test/zh-Hans.json", "test/zh_Hans.json", "test/zh-Hans.hello.json"))
 
 	localizer := bundle.NewLocalizer("zh-Hans")
@@ -30,10 +28,7 @@ func TestLoadFiles(t *testing.T) {
 func TestLoadGlob(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("zh-Hans"),
-	)
+	bundle := newTestBundle(t, "zh-Hans")
 	require.NoError(t, bundle.LoadGlob("test/*.json"))
 
 	localizer := bundle.NewLocalizer("zh-Hans")
@@ -45,10 +40,7 @@ func TestLoadGlob(t *testing.T) {
 func TestLoadFS(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("zh-Hans"),
-	)
+	bundle := newTestBundle(t, "zh-Hans")
 	require.NoError(t, bundle.LoadFS(testTranslationFS, "test/*.json"))
 
 	localizer := bundle.NewLocalizer("zh-Hans")
@@ -64,10 +56,7 @@ func TestLoadFSRejectsDuplicateCanonicalLocaleKeyDeclarations(t *testing.T) {
 		"locales/zh-Hans.base.json":  &fstest.MapFile{Data: []byte(`{"shared":"first","new":"new"}`)},
 		"locales/zh_Hans.extra.json": &fstest.MapFile{Data: []byte(`{"shared":"second"}`)},
 	}
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("zh-Hans"),
-	)
+	bundle := newTestBundle(t, "zh-Hans")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {"keep": "kept"},
 	}))
@@ -89,10 +78,7 @@ func TestLoadFSAllowsReplacementAcrossCalls(t *testing.T) {
 		"locales/en.base.json":  &fstest.MapFile{Data: []byte(`{"shared":"first"}`)},
 		"locales/en.extra.json": &fstest.MapFile{Data: []byte(`{"shared":"second"}`)},
 	}
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	require.NoError(t, bundle.LoadFS(fsys, "locales/en.base.json"))
 	require.NoError(t, bundle.LoadFS(fsys, "locales/en.extra.json"))
@@ -102,10 +88,7 @@ func TestLoadFSAllowsReplacementAcrossCalls(t *testing.T) {
 func TestLoadMessagesRejectsDuplicateCanonicalLocaleKeyDeclarations(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("zh-Hans"),
-	)
+	bundle := newTestBundle(t, "zh-Hans")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {"keep": "kept"},
 	}))
@@ -129,10 +112,7 @@ func TestLoadMessagesRejectsDuplicateCanonicalLocaleKeyDeclarations(t *testing.T
 func TestLoadMessagesAllowsDisjointCanonicalLocaleAliases(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("zh-Hans"),
-	)
+	bundle := newTestBundle(t, "zh-Hans")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"zh-Hans": {"first": "first"},
 		"zh_Hans": {"second": "second"},
@@ -146,10 +126,7 @@ func TestLoadMessagesAllowsDisjointCanonicalLocaleAliases(t *testing.T) {
 func TestLoadMessagesAllowsReplacementAcrossCalls(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {"shared": "first"},
 	}))
@@ -163,10 +140,7 @@ func TestLoadMessagesAllowsReplacementAcrossCalls(t *testing.T) {
 func TestLoadFilesReadError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	err := bundle.LoadFiles("nonexistent/file.json")
 	require.Error(t, err)
@@ -179,10 +153,7 @@ func TestLoadFilesReadError(t *testing.T) {
 func TestLoadGlobInvalidPattern(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	err := bundle.LoadGlob("[")
 	require.Error(t, err)
@@ -211,10 +182,7 @@ func TestLoadFSReadError(t *testing.T) {
 		},
 		err: readErr,
 	}
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	err := bundle.LoadFS(fsys, "test/*.json")
 	require.Error(t, err)
@@ -225,10 +193,7 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 	t.Parallel()
 
 	fsys := fstest.MapFS{}
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	err := bundle.LoadFS(fsys, "[")
 	require.Error(t, err)
@@ -238,10 +203,7 @@ func TestLoadFSInvalidGlob(t *testing.T) {
 func TestLoadFSNilFilesystemReturnsError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	var err error
 	require.NotPanics(t, func() {
@@ -258,10 +220,7 @@ func TestLoadFSRejectsUnmatchedFileLocale(t *testing.T) {
 	fsys := fstest.MapFS{
 		"test/de.json": &fstest.MapFile{Data: []byte(`{"hello":"Hallo"}`)},
 	}
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	err := bundle.LoadFS(fsys, "test/*.json")
 	require.Error(t, err)
@@ -274,9 +233,7 @@ func TestLoadFSRejectsUnmatchedFileLocale(t *testing.T) {
 func TestWithUnmarshalerNilKeepsDefault(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("zh-Hans"),
+	bundle := newTestBundle(t, "zh-Hans",
 		WithUnmarshaler(nil),
 	)
 
@@ -293,9 +250,7 @@ func TestMergeTranslationUnmarshalError(t *testing.T) {
 	badUnmarshaler := func([]byte, any) error {
 		return unmarshalErr
 	}
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
+	bundle := newTestBundle(t, "en",
 		WithUnmarshaler(badUnmarshaler),
 	)
 
@@ -307,10 +262,7 @@ func TestMergeTranslationUnmarshalError(t *testing.T) {
 func TestLoadMessagesReturnsCompilationError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 
 	err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {"broken": "Hello, {name"},
@@ -318,15 +270,69 @@ func TestLoadMessagesReturnsCompilationError(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrMessageFormatCompilation)
 	assert.Contains(t, err.Error(), `compile translation for locale "en" key "broken"`)
+	assert.NotContains(t, err.Error(), "load translations from")
+}
+
+func TestFileLoaderCompilationErrorsIdentifySource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		load func(*I18n, string) error
+	}{
+		{name: "files", load: func(bundle *I18n, file string) error {
+			return bundle.LoadFiles(file)
+		}},
+		{name: "glob", load: func(bundle *I18n, file string) error {
+			return bundle.LoadGlob(filepath.Join(filepath.Dir(file), "*.json"))
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			file := filepath.Join(t.TempDir(), "en.json")
+			require.NoError(t, os.WriteFile(file, []byte(`{"broken":"Hello, {name"}`), 0o600))
+			bundle := newTestBundle(t, "en")
+
+			err := tt.load(bundle, file)
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrMessageFormatCompilation)
+			assert.Contains(t, err.Error(), file)
+			assert.Contains(t, err.Error(), `locale "en" key "broken"`)
+		})
+	}
+}
+
+func TestLoadFSCompilationErrorIdentifiesSourceAndRollsBack(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{
+		"locales/en.bad.json":  &fstest.MapFile{Data: []byte(`{"broken":"Hello, {name"}`)},
+		"locales/en.good.json": &fstest.MapFile{Data: []byte(`{"new":"New"}`)},
+	}
+	bundle := newTestBundle(t, "en")
+	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
+		"en": {"keep": "Old"},
+	}))
+
+	err := bundle.LoadFS(fsys, "locales/*.json")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrMessageFormatCompilation)
+	assert.Contains(t, err.Error(), `"locales/en.bad.json"`)
+	assert.NotContains(t, err.Error(), `"locales/en.good.json"`)
+	assert.Contains(t, err.Error(), `locale "en" key "broken"`)
+
+	assert.Equal(t, "Old", bundle.NewLocalizer("en").Get("keep"))
+	assert.False(t, bundle.Has("en", "new"))
+	assert.False(t, bundle.Has("en", "broken"))
 }
 
 func TestLoadMessagesRejectsUnmatchedLocale(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	err := bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello"},
 		"de": {"hello": "Hallo"},
@@ -341,10 +347,7 @@ func TestLoadMessagesRejectsUnmatchedLocale(t *testing.T) {
 func TestLoadMessagesFailedCompileLeavesCatalogUntouched(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {"keep": "Old"},
 	}))

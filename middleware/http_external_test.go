@@ -15,9 +15,8 @@ import (
 func TestHTTPMiddlewareAcceptsDetectorOptions(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "ja-JP"),
+	bundle, err := i18n.NewBundle("en",
+		i18n.WithLocales("ja-JP"),
 	)
 	require.NoError(t, err)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{

@@ -9,28 +9,44 @@ import (
 	"slices"
 )
 
+type stagedMessage struct {
+	text string
+	path string
+}
+
 // LoadMessages loads translations from a locale-keyed map. Within one call,
 // locale aliases may contribute disjoint keys, but a duplicate canonical
 // locale and key is rejected.
 func (i *I18n) LoadMessages(msgs map[string]map[string]string) error {
+	staged := make(map[string]map[string]stagedMessage, len(msgs))
+	for locale, texts := range msgs {
+		staged[locale] = make(map[string]stagedMessage, len(texts))
+		for name, text := range texts {
+			staged[locale][name] = stagedMessage{text: text}
+		}
+	}
+	return i.loadMessages(staged)
+}
+
+func (i *I18n) loadMessages(msgs map[string]map[string]stagedMessage) error {
 	i.catalogMu.Lock()
 	defer i.catalogMu.Unlock()
 
 	translations := cloneTranslations(i.directTranslations)
 	origins := make(map[string]map[string]string, len(msgs))
 	for _, loc := range slices.Sorted(maps.Keys(msgs)) {
-		texts := msgs[loc]
+		messages := msgs[loc]
 		locale, err := i.resolveLoadLocale(loc)
 		if err != nil {
 			return err
 		}
 		if translations[locale] == nil {
-			translations[locale] = make(map[string]*parsedTranslation, len(texts))
+			translations[locale] = make(map[string]*parsedTranslation, len(messages))
 		}
 		if origins[locale] == nil {
-			origins[locale] = make(map[string]string, len(texts))
+			origins[locale] = make(map[string]string, len(messages))
 		}
-		for _, name := range slices.Sorted(maps.Keys(texts)) {
+		for _, name := range slices.Sorted(maps.Keys(messages)) {
 			if first, ok := origins[locale][name]; ok {
 				return fmt.Errorf(
 					"locale %q key %q declared by locale inputs %q and %q",
@@ -39,9 +55,12 @@ func (i *I18n) LoadMessages(msgs map[string]map[string]string) error {
 			}
 			origins[locale][name] = loc
 
-			text := texts[name]
-			pt, err := i.parseTranslation(locale, name, text)
+			message := messages[name]
+			pt, err := i.parseTranslation(locale, name, message.text)
 			if err != nil {
+				if message.path != "" {
+					return fmt.Errorf("load translations from %q: %w", message.path, err)
+				}
 				return err
 			}
 			translations[locale][name] = pt
@@ -51,7 +70,8 @@ func (i *I18n) LoadMessages(msgs map[string]map[string]string) error {
 	return nil
 }
 
-// LoadFiles loads translations from the given file paths.
+// LoadFiles loads translations from the given file paths. File errors retain
+// the source path through decoding and MessageFormat compilation.
 func (i *I18n) LoadFiles(files ...string) error {
 	return i.loadFiles(files, os.ReadFile)
 }
@@ -83,22 +103,21 @@ func (i *I18n) LoadFS(fsys fs.FS, patterns ...string) error {
 }
 
 func (i *I18n) loadFiles(files []string, readFn func(string) ([]byte, error)) error {
-	msgs := make(map[string]map[string]string, len(files))
-	origins := make(map[string]map[string]string, len(files))
+	msgs := make(map[string]map[string]stagedMessage, len(files))
 	for _, f := range files {
 		raw, err := readFn(f)
 		if err != nil {
 			return fmt.Errorf("read file %q: %w", f, err)
 		}
-		if err := i.mergeTranslation(msgs, origins, f, raw); err != nil {
+		if err := i.mergeTranslation(msgs, f, raw); err != nil {
 			return fmt.Errorf("load translations from %q: %w", f, err)
 		}
 	}
-	return i.LoadMessages(msgs)
+	return i.loadMessages(msgs)
 }
 
 func (i *I18n) mergeTranslation(
-	msgs, origins map[string]map[string]string, file string, raw []byte,
+	msgs map[string]map[string]stagedMessage, file string, raw []byte,
 ) error {
 	var kv map[string]string
 	if err := i.unmarshaler(raw, &kv); err != nil {
@@ -109,18 +128,16 @@ func (i *I18n) mergeTranslation(
 		return err
 	}
 	if msgs[locale] == nil {
-		msgs[locale] = make(map[string]string, len(kv))
-		origins[locale] = make(map[string]string, len(kv))
+		msgs[locale] = make(map[string]stagedMessage, len(kv))
 	}
 	for _, key := range slices.Sorted(maps.Keys(kv)) {
-		if first, ok := origins[locale][key]; ok {
+		if first, ok := msgs[locale][key]; ok {
 			return fmt.Errorf(
 				"locale %q key %q declared in %q and %q",
-				locale, key, first, file,
+				locale, key, first.path, file,
 			)
 		}
-		origins[locale][key] = file
-		msgs[locale][key] = kv[key]
+		msgs[locale][key] = stagedMessage{text: kv[key], path: file}
 	}
 	return nil
 }

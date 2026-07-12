@@ -6,7 +6,6 @@ import (
 	"maps"
 
 	mf "github.com/kaptinlin/messageformat-go/mf1"
-	"golang.org/x/text/language"
 )
 
 // ErrMessageFormatCompilation indicates that MessageFormat template compilation failed.
@@ -128,25 +127,11 @@ func (f *messageFormatter) format(locale, message string, data []Vars) (string, 
 }
 
 func (f *messageFormatter) newFormatter(locale string) (*mf.MessageFormat, error) {
-	base, err := messageFormatBase(locale)
-	if err != nil {
-		return nil, err
-	}
-
-	formatter, err := mf.New(base, f.options)
+	formatter, err := mf.New(locale, f.options)
 	if err != nil {
 		return nil, fmt.Errorf("create formatter: %w", err)
 	}
 	return formatter, nil
-}
-
-func messageFormatBase(locale string) (string, error) {
-	tag, err := language.Parse(locale)
-	if err != nil {
-		return "", fmt.Errorf("parse locale %q: %w", locale, err)
-	}
-	base, _ := tag.Base()
-	return base.String(), nil
 }
 
 func formatCompiled(format messageFunction, data []Vars) (string, error) {

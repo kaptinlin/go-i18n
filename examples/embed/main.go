@@ -16,9 +16,8 @@ func main() {
 }
 
 func run(fsys fs.FS, patterns ...string) {
-	bundle, err := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans"),
+	bundle, err := i18n.NewBundle("en",
+		i18n.WithLocales("zh-Hans"),
 	)
 	if err != nil {
 		fmt.Println(err)

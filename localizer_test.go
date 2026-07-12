@@ -56,9 +56,8 @@ var testTranslations = map[string]map[string]string{
 func newTestLocalizer(tb testing.TB) *Localizer {
 	tb.Helper()
 
-	bundle := newTestBundle(tb,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
+	bundle := newTestBundle(tb, "en",
+		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 	)
 	require.NoError(tb, bundle.LoadMessages(testTranslations))
 	return bundle.NewLocalizer("zh-Hans")
@@ -167,9 +166,8 @@ func TestTextPluralContext(t *testing.T) {
 func TestTextFallback(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("zh-Hans"),
-		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
+	bundle := newTestBundle(t, "zh-Hans",
+		WithLocales("en", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{
 			"ja-JP": {"ko-KR"},
 		}),
@@ -195,9 +193,8 @@ func TestTextFallback(t *testing.T) {
 func TestTextFallbackResursive(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 		WithFallback(map[string][]string{
 			"ja-JP": {"ko-KR"},
 			"ko-KR": {"zh-Hans"},
@@ -212,8 +209,7 @@ func TestTextFallbackResursive(t *testing.T) {
 func TestCustomFormatters(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
+	bundle := newTestBundle(t, "en",
 		WithCustomFormatters(map[string]any{
 			"upper": func(value any, locale string, arg *string) any {
 				return strings.ToUpper(fmt.Sprintf("%v", value))
@@ -232,9 +228,7 @@ func TestCustomFormatters(t *testing.T) {
 func TestLoadedTranslationsUseCustomFormatters(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
+	bundle := newTestBundle(t, "en",
 		WithCustomFormatters(map[string]any{
 			"upper": func(value any, locale string, arg *string) any {
 				return strings.ToUpper(fmt.Sprintf("%v", value))
@@ -252,8 +246,7 @@ func TestLoadedTranslationsUseCustomFormatters(t *testing.T) {
 func TestStrictMode(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
+	bundle := newTestBundle(t, "en",
 		WithStrictMode(true),
 	)
 
@@ -266,7 +259,7 @@ func TestStrictMode(t *testing.T) {
 func TestFormatMethod(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	localizer := bundle.NewLocalizer("en")
 
 	result1, err := localizer.Format("Hello, {name}!", Vars{"name": "Alice"})
@@ -289,7 +282,7 @@ func TestFormatMethod(t *testing.T) {
 func TestFormatSelectMessage(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	localizer := bundle.NewLocalizer("en")
 
 	result, err := localizer.Format("{gender, select, female {She} male {He} other {They}} liked this.", Vars{"gender": "female"})
@@ -305,8 +298,7 @@ func TestMessageFormatOptions(t *testing.T) {
 		Currency: "USD",
 	}
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
+	bundle := newTestBundle(t, "en",
 		WithMessageFormatOptions(options),
 	)
 
@@ -340,12 +332,12 @@ func TestFormatRespectsStrictMessageFormatOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			options := []Option{WithDefaultLocale("en")}
+			var options []Option
 			if tt.options != nil {
 				options = append(options, WithMessageFormatOptions(tt.options))
 			}
 
-			bundle := newTestBundle(t, options...)
+			bundle := newTestBundle(t, "en", options...)
 			localizer := bundle.NewLocalizer("en")
 			result, err := localizer.Format("{name, upper}", Vars{"name": "World"})
 			if tt.wantErr {
@@ -363,8 +355,7 @@ func TestFormatRespectsStrictMessageFormatOptions(t *testing.T) {
 func TestFormatRespectsRequireAllArgumentsOption(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
+	bundle := newTestBundle(t, "en",
 		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
 	)
 	loc := bundle.NewLocalizer("en")
@@ -376,9 +367,7 @@ func TestFormatRespectsRequireAllArgumentsOption(t *testing.T) {
 func TestGetFallsBackToRawTextWhenRequiredArgumentIsMissing(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
+	bundle := newTestBundle(t, "en",
 		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
@@ -392,9 +381,7 @@ func TestGetFallsBackToRawTextWhenRequiredArgumentIsMissing(t *testing.T) {
 func TestLookupReportsRuntimeFormatError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
+	bundle := newTestBundle(t, "en",
 		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
@@ -415,9 +402,8 @@ func TestLookupReportsRuntimeFormatError(t *testing.T) {
 func TestLookupReportsFallbackRuntimeFormatError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "ja-JP"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("ja-JP"),
 		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
@@ -441,8 +427,7 @@ func TestLookupReportsFallbackRuntimeFormatError(t *testing.T) {
 func TestLookupMissingTemplateFormattingFailureIsNotAnError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
+	bundle := newTestBundle(t, "en",
 		WithMessageFormatOptions(&mf.MessageFormatOptions{RequireAllArguments: true}),
 	)
 
@@ -457,10 +442,7 @@ func TestLookupMissingTemplateFormattingFailureIsNotAnError(t *testing.T) {
 func TestGetUsesAllProvidedVars(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {"invite": "{sender} invited {recipient}."},
 	}))
@@ -476,7 +458,7 @@ func TestGetUsesAllProvidedVars(t *testing.T) {
 func TestFormatUsesAllProvidedVars(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	loc := bundle.NewLocalizer("en")
 
 	result, err := loc.Format(
@@ -491,10 +473,7 @@ func TestFormatUsesAllProvidedVars(t *testing.T) {
 func TestGetWithEmptyFirstVarsUsesLaterVars(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello, {name}!"},
 	}))
@@ -506,10 +485,7 @@ func TestGetWithEmptyFirstVarsUsesLaterVars(t *testing.T) {
 func TestLocalizeWithoutVars(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"plain": "Hello, world!",
@@ -525,10 +501,7 @@ func TestLocalizeWithoutVars(t *testing.T) {
 func TestGetFormatsEscapedMessageWithoutVars(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {"literal_placeholder": "Use '{count}' literally."},
 	}))
@@ -540,7 +513,7 @@ func TestGetFormatsEscapedMessageWithoutVars(t *testing.T) {
 func TestFormatNoVars(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	loc := bundle.NewLocalizer("en")
 
 	result, err := loc.Format("Hello, world!")
@@ -551,7 +524,7 @@ func TestFormatNoVars(t *testing.T) {
 func TestFormatCompileError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	loc := bundle.NewLocalizer("en")
 
 	_, err := loc.Format("{invalid syntax")
@@ -563,27 +536,17 @@ func TestFormatCompileError(t *testing.T) {
 func TestFormatReturnsRuntimeError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	loc := bundle.NewLocalizer("en")
 
 	_, err := loc.Format("{count, plural, one {# item} other {# items}}", Vars{"count": "oops"})
 	require.Error(t, err)
 }
 
-func TestFormatInvalidLocalizerLocaleReturnsError(t *testing.T) {
-	t.Parallel()
-
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
-	loc := &Localizer{bundle: bundle, locale: "???invalid???"}
-
-	_, err := loc.Format("Hello, world!")
-	require.Error(t, err)
-}
-
 func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {
 			"items": "{count, plural, =0 {no items} one {# item} other {# items}}",
@@ -597,10 +560,7 @@ func TestGetFallsBackToRawTextOnRuntimeFormatError(t *testing.T) {
 func TestGetRuntimeFallbackReturnsRawTextForInvalidMessageFormat(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{"en": {}}))
 
 	loc := bundle.NewLocalizer("en")
@@ -610,9 +570,8 @@ func TestGetRuntimeFallbackReturnsRawTextForInvalidMessageFormat(t *testing.T) {
 func TestMissingFallbackIsStableAcrossLookups(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
@@ -625,10 +584,7 @@ func TestMissingFallbackIsStableAcrossLookups(t *testing.T) {
 }
 
 func TestMissingLookupsDoNotRetainHighCardinalityInput(t *testing.T) {
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en"),
-	)
+	bundle := newTestBundle(t, "en")
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{"en": {}}))
 	localizer := bundle.NewLocalizer("en")
 
@@ -660,9 +616,8 @@ func exerciseUniqueMissingLookups(localizer *Localizer, count, keySize int) {
 func TestGetRuntimeFallbackIsSafeForConcurrentReads(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
@@ -690,9 +645,8 @@ func TestGetRuntimeFallbackIsSafeForConcurrentReads(t *testing.T) {
 func TestLookup(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello", "bye": "Goodbye"},
@@ -723,9 +677,8 @@ func TestLookup(t *testing.T) {
 func TestLookupContext(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"Post <verb>": "Post", "Post <noun>": "Post"},
@@ -750,9 +703,8 @@ func TestLookupContext(t *testing.T) {
 func TestLookupFallbackChain(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans", "ja-JP"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans", "ja-JP"),
 		WithFallback(map[string][]string{
 			"ja-JP": {"zh-Hans"},
 		}),
@@ -781,9 +733,8 @@ func TestLookupFallbackChain(t *testing.T) {
 func TestLookupWithVars(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"greeting": "Hello, {name}!"},
@@ -808,9 +759,8 @@ func TestLookupWithVars(t *testing.T) {
 func TestLookupDetectFallbackVsDirect(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello", "only_en": "English only"},
@@ -838,9 +788,8 @@ func TestLookupDetectFallbackVsDirect(t *testing.T) {
 func TestGetTemplate(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans", "ja-JP"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans", "ja-JP"),
 		WithFallback(map[string][]string{
 			"ja-JP": {"zh-Hans"},
 		}),
@@ -888,9 +837,8 @@ func TestGetTemplate(t *testing.T) {
 func TestLookupReturnsTemplate(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans", "ja-JP"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans", "ja-JP"),
 		WithFallback(map[string][]string{
 			"ja-JP": {"zh-Hans"},
 		}),

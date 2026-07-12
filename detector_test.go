@@ -12,9 +12,8 @@ import (
 func TestDetectorDetectLocale(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans", "ja-JP"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans", "ja-JP"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
@@ -228,9 +227,8 @@ func TestDetectorDetectLocale(t *testing.T) {
 func TestDetectorDetectLocaleHandlesNilRequestInputs(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en":      {"hello": "Hello"},
@@ -248,9 +246,8 @@ func TestDetectorDetectLocaleHandlesNilRequestInputs(t *testing.T) {
 
 func TestDetectorExplicitLocaleMatchesSupportedLocaleBeforeTranslationsLoad(t *testing.T) {
 	t.Parallel()
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 	require.NoError(t, bundle.LoadMessages(map[string]map[string]string{
 		"en": {"hello": "Hello"},
@@ -274,7 +271,7 @@ func TestNewDetectorRejectsNilBundle(t *testing.T) {
 func TestNewDetectorRejectsNilOption(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t, WithDefaultLocale("en"))
+	bundle := newTestBundle(t, "en")
 	var detector *Detector
 	var err error
 	require.NotPanics(t, func() {
@@ -288,9 +285,8 @@ func TestNewDetectorRejectsNilOption(t *testing.T) {
 func TestNewDetectorRejectsMixedInvalidPrioritySources(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 
 	detector, err := NewDetector(
@@ -342,9 +338,8 @@ func TestLocalizerFromContextNilContext(t *testing.T) {
 func TestNewDetectorRejectsAllInvalidPrioritySources(t *testing.T) {
 	t.Parallel()
 
-	bundle := newTestBundle(t,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans"),
+	bundle := newTestBundle(t, "en",
+		WithLocales("zh-Hans"),
 	)
 
 	detector, err := NewDetector(bundle, WithDetectorPriority(DetectorSource("bad")))

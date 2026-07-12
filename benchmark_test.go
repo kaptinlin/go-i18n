@@ -65,7 +65,7 @@ func BenchmarkLocalizerGetTextBased(b *testing.B) {
 
 // BenchmarkLocalizerFormat benchmarks direct MessageFormat compilation and formatting.
 func BenchmarkLocalizerFormat(b *testing.B) {
-	bundle := newTestBundle(b, WithDefaultLocale("en"))
+	bundle := newTestBundle(b, "en")
 	localizer := bundle.NewLocalizer("en")
 	vars := Vars{"name": "Alice"}
 	for b.Loop() {
@@ -75,7 +75,7 @@ func BenchmarkLocalizerFormat(b *testing.B) {
 
 // BenchmarkLocalizerFormatPlural benchmarks MessageFormat with plural forms.
 func BenchmarkLocalizerFormatPlural(b *testing.B) {
-	bundle := newTestBundle(b, WithDefaultLocale("en"))
+	bundle := newTestBundle(b, "en")
 	localizer := bundle.NewLocalizer("en")
 	vars := Vars{"count": 5}
 	for b.Loop() {
@@ -109,10 +109,7 @@ func BenchmarkNameInsensitiveSingle(b *testing.B) {
 // BenchmarkLoadFiles benchmarks loading translation files.
 func BenchmarkLoadFiles(b *testing.B) {
 	for b.Loop() {
-		bundle := newTestBundle(b,
-			WithDefaultLocale("zh-Hans"),
-			WithLocales("zh-Hans"),
-		)
+		bundle := newTestBundle(b, "zh-Hans")
 		_ = bundle.LoadFiles("test/zh-Hans.json", "test/zh_Hans.json", "test/zh-Hans.hello.json")
 	}
 }
@@ -132,9 +129,8 @@ func BenchmarkLoadMessages(b *testing.B) {
 		},
 	}
 	for b.Loop() {
-		bundle := newTestBundle(b,
-			WithDefaultLocale("en"),
-			WithLocales("en", "zh-Hans"),
+		bundle := newTestBundle(b, "en",
+			WithLocales("zh-Hans"),
 		)
 		_ = bundle.LoadMessages(translations)
 	}
@@ -143,9 +139,8 @@ func BenchmarkLoadMessages(b *testing.B) {
 // BenchmarkNewBundle benchmarks creating a new bundle with options.
 func BenchmarkNewBundle(b *testing.B) {
 	for b.Loop() {
-		bundle, err := NewBundle(
-			WithDefaultLocale("en"),
-			WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
+		bundle, err := NewBundle("en",
+			WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 			WithFallback(map[string][]string{
 				"ja-JP": {"ko-KR", "zh-Hans"},
 			}),
@@ -159,9 +154,8 @@ func BenchmarkNewBundle(b *testing.B) {
 
 // BenchmarkNewLocalizer benchmarks creating a new localizer.
 func BenchmarkNewLocalizer(b *testing.B) {
-	bundle := newTestBundle(b,
-		WithDefaultLocale("en"),
-		WithLocales("en", "zh-Hans", "ja-JP", "ko-KR"),
+	bundle := newTestBundle(b, "en",
+		WithLocales("zh-Hans", "ja-JP", "ko-KR"),
 	)
 	_ = bundle.LoadMessages(testTranslations)
 	for b.Loop() {

@@ -2,3 +2,12 @@
 	path = .agents/skills
 	url = https://github.com/agentable/golang-skills.git
 	shallow = true
+[submodule ".references/fluent-js"]
+	path = .references/fluent-js
+	url = https://github.com/projectfluent/fluent.js.git
+[submodule ".references/nicksnyder-go-i18n"]
+	path = .references/nicksnyder-go-i18n
+	url = https://github.com/nicksnyder/go-i18n.git
+[submodule ".references/universal-translator"]
+	path = .references/universal-translator
+	url = https://github.com/go-playground/universal-translator.git

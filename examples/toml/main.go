@@ -13,9 +13,8 @@ import (
 var localesFs embed.FS
 
 func main() {
-	bundle, err := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans"),
+	bundle, err := i18n.NewBundle("en",
+		i18n.WithLocales("zh-Hans"),
 		i18n.WithUnmarshaler(toml.Unmarshal),
 	)
 	if err != nil {

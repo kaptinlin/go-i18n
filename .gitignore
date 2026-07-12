@@ -44,40 +44,30 @@ build/
 .ralphy/deferred.json
 .ralphy/*.txt
 
-# todo files
-.todo
-TODO.md
-IMPROVE.md
-IMPROVE2.md
-
 # Scratch/planning docs
 .workspace
 task.md
+.todo
 .cov.before
 .cov.after
 .fix.before*
 .fix.after*
+.plan/
 .plans/
 reports/
-PLAN*.md
-IMPROVE.md
 IMPROVE*.md
+improve*.md
+improves/
 REFACTOR.md
 REFACTOR*.md
+refactor*.md
 ANALYSIS.md
+PLAN*.md
+plan*.md
+TODO*.md
 
 # Meeting records
 .meetings/
-
-# Additional scratch/planning patterns
-improve*.md
-improves/
-refactor*.md
-plan*.md
-.plan/*.md
-.plans/*
-TODO*.md
-reports/*
 
 # Additional tooling patterns
 .vscode/

@@ -37,8 +37,8 @@ import (
 
 func main() {
 	bundle, err := i18n.NewBundle(
-		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans"),
+		"en",
+		i18n.WithLocales("zh-Hans"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -61,8 +61,11 @@ func main() {
 
 ### Bundle and localizer
 
-- `NewBundle` constructs the shared translation bundle and returns an error for invalid locale configuration.
-- `WithDefaultLocale`, `WithLocales`, `WithFallback`, `WithUnmarshaler`, `WithMessageFormatOptions`, `WithCustomFormatters`, and `WithStrictMode` configure bundle behavior.
+- `NewBundle` requires the default locale, adds it to the supported set, and returns an error for invalid locale configuration.
+- Do not repeat the default in `WithLocales` or an explicit fallback chain;
+  `WithLocales` adds other supported locales and the bundle always tries its
+  default after every configured fallback.
+- `WithLocales`, `WithFallback`, `WithUnmarshaler`, `WithMessageFormatOptions`, `WithCustomFormatters`, and `WithStrictMode` configure optional bundle behavior.
 - `WithMessageFormatOptions` accepts only the default/string return mode;
   `NewBundle` rejects values/parts mode because every rendering API returns a
   string.
@@ -83,7 +86,8 @@ Configured locale mistakes fail loudly: invalid construction locales make `NewBu
 Within one `LoadMessages` or file-loader call, locale aliases or fragments may
 declare disjoint keys; repeating a key for the same canonical locale makes the
 whole batch fail. File-loader errors identify both source paths. A later
-successful loader call may intentionally replace an existing key.
+successful loader call may intentionally replace an existing key. File
+MessageFormat errors identify the source path, canonical locale, and key.
 
 ### Render translations
 
@@ -171,7 +175,7 @@ import (
 )
 
 func main() {
-	bundle, err := i18n.NewBundle(i18n.WithDefaultLocale("en"), i18n.WithLocales("en", "zh-Hans"))
+	bundle, err := i18n.NewBundle("en", i18n.WithLocales("zh-Hans"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -213,8 +217,8 @@ import (
 )
 
 bundle, err := i18n.NewBundle(
-	i18n.WithDefaultLocale("en"),
-	i18n.WithLocales("en", "zh-Hans"),
+	"en",
+	i18n.WithLocales("zh-Hans"),
 	i18n.WithUnmarshaler(yaml.Unmarshal),
 )
 if err != nil {
